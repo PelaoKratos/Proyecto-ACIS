@@ -25,11 +25,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,10 +41,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -53,6 +57,8 @@ import com.example.proyecto_acis.data.EstadoOt
 import com.example.proyecto_acis.data.OrdenTrabajo
 import com.example.proyecto_acis.data.OrdenesRepository
 import com.example.proyecto_acis.data.Perfil
+import com.example.proyecto_acis.data.PrioridadOt
+import com.example.proyecto_acis.data.TipoOt
 import java.util.Calendar
 import java.util.Locale
 
@@ -72,23 +78,28 @@ fun AcisApp(modifier: Modifier = Modifier) {
     var perfil by rememberSaveable { mutableStateOf(Perfil.PLANIFICADOR) }
 
     Column(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Text("ACIS", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary)
-            Text("Primer recorrido · prototipo local", style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                Perfil.entries.forEach { opcion ->
-                    FilterChip(
-                        selected = perfil == opcion,
-                        onClick = {
-                            perfil = opcion
-                            navController.popBackStack(RutasAcis.ORDENES, inclusive = false)
-                        },
-                        label = { Text(opcion.etiqueta) },
-                    )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.primaryContainer,
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                Text("ACIS", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text("Primer recorrido · prototipo local", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    Perfil.entries.forEach { opcion ->
+                        FilterChip(
+                            selected = perfil == opcion,
+                            onClick = {
+                                perfil = opcion
+                                navController.popBackStack(RutasAcis.ORDENES, inclusive = false)
+                            },
+                            label = { Text(opcion.etiqueta) },
+                        )
+                    }
                 }
             }
         }
@@ -143,8 +154,8 @@ fun AcisApp(modifier: Modifier = Modifier) {
             composable(RutasAcis.CREAR) {
                 CrearOrden(
                     onVolver = { navController.popBackStack() },
-                    onCrear = { local, equipo, descripcion, fecha ->
-                        val id = repository.crear(local, equipo, descripcion, fecha)
+                    onCrear = { local, equipo, descripcion, fecha, tipo, prioridad ->
+                        val id = repository.crear(local, equipo, descripcion, fecha, tipo, prioridad)
                         if (id != null) {
                             navController.navigate(RutasAcis.detalle(id)) {
                                 popUpTo(RutasAcis.ORDENES) { inclusive = false }
@@ -215,15 +226,22 @@ private fun ListaOrdenes(
             }
         }
         items(ordenes, key = { it.id }) { orden ->
-            Card(modifier = Modifier.fillMaxWidth().clickable { onSeleccionar(orden.id) }) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    AnimatedContent(targetState = orden.estado.etiqueta, label = "estado de OT") { estado ->
-                        Text("${orden.id} · $estado", style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary)
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable { onSeleccionar(orden.id) },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(orden.id, style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary)
+                    AnimatedContent(targetState = orden.estado, label = "estado de OT") { estado ->
+                        EstadoBadge(estado)
                     }
                     Text(orden.local, style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold)
                     Text(orden.equipo, style = MaterialTheme.typography.bodyMedium)
+                    Text(orden.tipo.etiqueta, style = MaterialTheme.typography.bodySmall)
+                    PrioridadBadge(orden.prioridad)
                     Text(orden.fechaProgramada, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -235,7 +253,7 @@ private fun ListaOrdenes(
 @Composable
 private fun CrearOrden(
     onVolver: () -> Unit,
-    onCrear: (String, String, String, String) -> Boolean,
+    onCrear: (String, String, String, String, TipoOt, PrioridadOt) -> Boolean,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -244,6 +262,8 @@ private fun CrearOrden(
     var local by rememberSaveable { mutableStateOf("") }
     var equipo by rememberSaveable { mutableStateOf("") }
     var descripcion by rememberSaveable { mutableStateOf("") }
+    var tipoSeleccionado by rememberSaveable { mutableStateOf<TipoOt?>(null) }
+    var prioridadSeleccionada by rememberSaveable { mutableStateOf<PrioridadOt?>(null) }
     var dia by rememberSaveable { mutableStateOf(ahora.get(Calendar.DAY_OF_MONTH)) }
     var mes by rememberSaveable { mutableStateOf(ahora.get(Calendar.MONTH)) }
     var anio by rememberSaveable { mutableStateOf(ahora.get(Calendar.YEAR)) }
@@ -263,6 +283,26 @@ private fun CrearOrden(
         item { OutlinedTextField(equipo, { equipo = it }, label = { Text("Equipo") }, modifier = Modifier.fillMaxWidth()) }
         item { OutlinedTextField(descripcion, { descripcion = it }, label = { Text("Descripción del trabajo") },
             minLines = 3, modifier = Modifier.fillMaxWidth()) }
+        item { Text("Tipo de trabajo", style = MaterialTheme.typography.titleMedium) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                TipoOt.entries.filter { it != TipoOt.SIN_ESPECIFICAR }.forEach { tipo ->
+                    FilterChip(selected = tipoSeleccionado == tipo,
+                        onClick = { tipoSeleccionado = tipo }, label = { Text(tipo.etiqueta) })
+                }
+            }
+        }
+        item { Text("Prioridad", style = MaterialTheme.typography.titleMedium) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                PrioridadOt.entries.filter { it != PrioridadOt.SIN_ESPECIFICAR }.forEach { prioridad ->
+                    FilterChip(selected = prioridadSeleccionada == prioridad,
+                        onClick = { prioridadSeleccionada = prioridad }, label = { Text(prioridad.etiqueta) })
+                }
+            }
+        }
         item { Text("Fecha y hora programada", style = MaterialTheme.typography.titleMedium) }
         item {
             OutlinedButton(
@@ -293,12 +333,16 @@ private fun CrearOrden(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(if (horaElegida) "Hora: $horario" else "Seleccionar hora") }
         }
-        if (error) item { Text("Completa los campos y selecciona fecha y hora.", color = MaterialTheme.colorScheme.error) }
+        if (error) item { Text("Completa los campos, tipo, prioridad, fecha y hora.", color = MaterialTheme.colorScheme.error) }
         item {
             Button(onClick = {
                 focusManager.clearFocus()
                 keyboardController?.hide()
-                error = !onCrear(local, equipo, descripcion, if (fechaElegida && horaElegida) "$fecha $horario" else "")
+                val tipo = tipoSeleccionado
+                val prioridad = prioridadSeleccionada
+                error = if (tipo != null && prioridad != null && fechaElegida && horaElegida) {
+                    !onCrear(local, equipo, descripcion, "$fecha $horario", tipo, prioridad)
+                } else true
             }) { Text("Guardar OT") }
         }
     }
@@ -324,17 +368,22 @@ private fun DetalleOrden(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(orden.id, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                AnimatedContent(targetState = orden.estado.etiqueta, label = "estado del detalle") { estado ->
-                    Text(estado, style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary)
+                AnimatedContent(targetState = orden.estado, label = "estado del detalle") { estado ->
+                    EstadoBadge(estado)
                 }
             }
         }
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     CampoDetalle("Local", orden.local)
                     CampoDetalle("Equipo", orden.equipo)
+                    CampoDetalle("Tipo de trabajo", orden.tipo.etiqueta)
+                    PrioridadBadge(orden.prioridad)
                     CampoDetalle("Fecha programada", orden.fechaProgramada)
                     CampoDetalle("Trabajo solicitado", orden.descripcion)
                     if (orden.tecnico.isNotBlank()) CampoDetalle("Técnico", orden.tecnico)
@@ -413,5 +462,46 @@ private fun CampoDetalle(etiqueta: String, valor: String) {
         Text(etiqueta, style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(valor, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun EstadoBadge(estado: EstadoOt) {
+    val colores = MaterialTheme.colorScheme
+    val (fondo, texto) = when (estado) {
+        EstadoOt.CREADA -> colores.surfaceVariant to colores.onSurfaceVariant
+        EstadoOt.ASIGNADA, EstadoOt.ACEPTADA, EstadoOt.EN_VISITA ->
+            colores.primaryContainer to colores.onPrimaryContainer
+        EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.OBSERVADA ->
+            colores.tertiaryContainer to colores.onTertiaryContainer
+        EstadoOt.CERRADA -> colores.secondaryContainer to colores.onSecondaryContainer
+    }
+    BadgeTexto(estado.etiqueta, fondo, texto)
+}
+
+@Composable
+private fun PrioridadBadge(prioridad: PrioridadOt) {
+    val colores = MaterialTheme.colorScheme
+    val (fondo, texto) = when (prioridad) {
+        PrioridadOt.ALTA -> colores.errorContainer to colores.onErrorContainer
+        PrioridadOt.MEDIA -> colores.tertiaryContainer to colores.onTertiaryContainer
+        PrioridadOt.BAJA -> colores.secondaryContainer to colores.onSecondaryContainer
+        PrioridadOt.SIN_ESPECIFICAR -> colores.surfaceVariant to colores.onSurfaceVariant
+    }
+    BadgeTexto("Prioridad ${prioridad.etiqueta.lowercase()}", fondo, texto)
+}
+
+@Composable
+private fun BadgeTexto(etiqueta: String, fondo: Color, texto: Color) {
+    Surface(
+        color = fondo,
+        contentColor = texto,
+        shape = RoundedCornerShape(50),
+    ) {
+        Text(
+            etiqueta,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }

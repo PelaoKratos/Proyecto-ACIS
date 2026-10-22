@@ -16,12 +16,27 @@ enum class EstadoOt(val etiqueta: String) {
     CERRADA("Cerrada"),
 }
 
+enum class TipoOt(val etiqueta: String) {
+    SIN_ESPECIFICAR("Sin especificar"),
+    PREVENTIVA("Mantención preventiva"),
+    CORRECTIVA("Reparación correctiva"),
+}
+
+enum class PrioridadOt(val etiqueta: String) {
+    SIN_ESPECIFICAR("Sin especificar"),
+    BAJA("Baja"),
+    MEDIA("Media"),
+    ALTA("Alta"),
+}
+
 data class OrdenTrabajo(
     val id: String,
     val local: String,
     val equipo: String,
     val descripcion: String,
     val fechaProgramada: String,
+    val tipo: TipoOt = TipoOt.SIN_ESPECIFICAR,
+    val prioridad: PrioridadOt = PrioridadOt.SIN_ESPECIFICAR,
     val estado: EstadoOt = EstadoOt.CREADA,
     val tecnico: String = "",
     val checkIn: String = "",

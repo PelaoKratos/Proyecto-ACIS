@@ -1,57 +1,61 @@
 package com.example.proyecto_acis.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = AcisBlueDark,
+    onPrimary = Color(0xFF003642),
+    primaryContainer = Color(0xFF004D5F),
+    onPrimaryContainer = Color(0xFFD0EEF5),
+    secondary = AcisTealDark,
+    onSecondary = Color(0xFF00382F),
+    secondaryContainer = Color(0xFF155047),
+    onSecondaryContainer = Color(0xFFC0EEE0),
+    tertiary = AcisAmberDark,
+    onTertiary = Color(0xFF512D00),
+    tertiaryContainer = Color(0xFF704000),
+    onTertiaryContainer = Color(0xFFFFDDB3),
+    background = Color(0xFF101A1D),
+    onBackground = Color(0xFFDFE7E9),
+    surface = Color(0xFF172124),
+    onSurface = Color(0xFFDFE7E9),
+    surfaceVariant = Color(0xFF3E4A4D),
+    onSurfaceVariant = Color(0xFFBEC9CC),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = AcisBlue,
     onPrimary = Color.White,
+    primaryContainer = Color(0xFFD0EEF5),
+    onPrimaryContainer = Color(0xFF003642),
+    secondary = AcisTeal,
     onSecondary = Color.White,
+    secondaryContainer = Color(0xFFC0EEE0),
+    onSecondaryContainer = Color(0xFF00382F),
+    tertiary = AcisAmber,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    tertiaryContainer = Color(0xFFFFDDB3),
+    onTertiaryContainer = Color(0xFF512D00),
+    background = Color(0xFFF3F8FA),
+    onBackground = Color(0xFF172124),
+    surface = Color.White,
+    onSurface = Color(0xFF172124),
+    surfaceVariant = Color(0xFFDEE8EB),
+    onSurfaceVariant = Color(0xFF455457),
 )
 
 @Composable
 fun ProyectoACISTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
         typography = Typography,
         content = content
     )

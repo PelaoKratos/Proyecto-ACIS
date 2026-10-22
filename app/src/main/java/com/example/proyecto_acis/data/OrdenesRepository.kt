@@ -16,11 +16,27 @@ class OrdenesRepository(context: Context) {
     var ordenes by mutableStateOf(leerOrdenes())
         private set
 
-    fun crear(local: String, equipo: String, descripcion: String, fecha: String): String? {
+    fun crear(
+        local: String,
+        equipo: String,
+        descripcion: String,
+        fecha: String,
+        tipo: TipoOt,
+        prioridad: PrioridadOt,
+    ): String? {
         if (listOf(local, equipo, descripcion, fecha).any { it.isBlank() }) return null
+        if (tipo == TipoOt.SIN_ESPECIFICAR || prioridad == PrioridadOt.SIN_ESPECIFICAR) return null
         val siguiente = (ordenes.mapNotNull { it.id.removePrefix("OT-").toIntOrNull() }.maxOrNull() ?: 1000) + 1
         val id = "OT-$siguiente"
-        return if (guardar(ordenes + OrdenTrabajo(id, local.trim(), equipo.trim(), descripcion.trim(), fecha.trim()))) id
+        return if (guardar(ordenes + OrdenTrabajo(
+                id = id,
+                local = local.trim(),
+                equipo = equipo.trim(),
+                descripcion = descripcion.trim(),
+                fechaProgramada = fecha.trim(),
+                tipo = tipo,
+                prioridad = prioridad,
+            ))) id
         else null
     }
 
@@ -86,6 +102,8 @@ class OrdenesRepository(context: Context) {
                 put("equipo", orden.equipo)
                 put("descripcion", orden.descripcion)
                 put("fechaProgramada", orden.fechaProgramada)
+                put("tipo", orden.tipo.name)
+                put("prioridad", orden.prioridad.name)
                 put("estado", orden.estado.name)
                 put("tecnico", orden.tecnico)
                 put("checkIn", orden.checkIn)
@@ -115,6 +133,10 @@ class OrdenesRepository(context: Context) {
                 equipo = item.optString("equipo"),
                 descripcion = item.optString("descripcion"),
                 fechaProgramada = item.optString("fechaProgramada"),
+                tipo = TipoOt.entries.firstOrNull { it.name == item.optString("tipo") }
+                    ?: TipoOt.SIN_ESPECIFICAR,
+                prioridad = PrioridadOt.entries.firstOrNull { it.name == item.optString("prioridad") }
+                    ?: PrioridadOt.SIN_ESPECIFICAR,
                 estado = EstadoOt.valueOf(item.getString("estado")),
                 tecnico = item.optString("tecnico"),
                 checkIn = item.optString("checkIn"),

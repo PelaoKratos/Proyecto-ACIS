@@ -6,12 +6,13 @@ La navegación entre la lista, el formulario y el detalle usa `NavHost` y rutas,
 
 ## Recorrido
 
-1. En **Planificador**, crear una OT con local, equipo, descripción y fecha. Abrirla y asignarla al **Técnico demo**.
+1. En **Planificador**, crear una OT con local, equipo, descripción, tipo de trabajo, prioridad y fecha. Abrirla y asignarla al **Técnico demo**.
 2. Cambiar a **Técnico**, abrir la OT, aceptarla e iniciar la visita. La app registra el check-in.
 3. Escribir diagnóstico y actividad; los materiales son opcionales. Guardar borrador o finalizar la visita. Al finalizar, la app registra el check-out y deja la OT pendiente de conformidad.
 4. Cambiar a **Cliente**, abrir el informe y aprobarlo o dejar una observación. Si hay observación, el técnico puede responder y devolver la OT a revisión.
 
 Los cambios de estado se validan en `OrdenesRepository`. Las OT se guardan en almacenamiento privado del dispositivo y permanecen tras reiniciar la app.
+Las OT creadas antes de incorporar tipo y prioridad siguen disponibles; muestran «Sin especificar» en esos dos campos.
 
 ## Alcance pendiente
 
