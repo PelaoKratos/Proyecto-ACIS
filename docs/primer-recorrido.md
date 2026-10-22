@@ -2,6 +2,8 @@
 
 Esta rama inicia un recorrido ejecutable en una sola aplicación Android escrita en Kotlin y Jetpack Compose. El selector de perfil es una herramienta de demostración: no autentica usuarios ni aplica permisos reales.
 
+La navegación entre la lista, el formulario y el detalle usa `NavHost` y rutas, siguiendo el patrón mostrado en `EjercicioLayoutsConNav`. Las pantallas se desplazan y aparecen con un fundido al navegar; la lista se funde al cambiar de perfil y el estado de la OT anima sus cambios en el detalle. Se adaptó la idea de navegación del ejercicio al flujo existente de ACIS, sin incorporar sus pantallas de demostración.
+
 ## Recorrido
 
 1. En **Planificador**, crear una OT con local, equipo, descripción y fecha. Abrirla y asignarla al **Técnico demo**.

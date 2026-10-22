@@ -2,7 +2,12 @@ package com.example.proyecto_acis.ui
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -39,6 +44,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.proyecto_acis.data.EstadoOt
 import com.example.proyecto_acis.data.OrdenTrabajo
 import com.example.proyecto_acis.data.OrdenesRepository
@@ -46,19 +56,20 @@ import com.example.proyecto_acis.data.Perfil
 import java.util.Calendar
 import java.util.Locale
 
+private object RutasAcis {
+    const val ORDENES = "ordenes"
+    const val CREAR = "crear"
+    const val DETALLE = "detalle/{ordenId}"
+
+    fun detalle(ordenId: String) = "detalle/$ordenId"
+}
+
 @Composable
 fun AcisApp(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val repository = remember { OrdenesRepository(context.applicationContext) }
+    val navController = rememberNavController()
     var perfil by rememberSaveable { mutableStateOf(Perfil.PLANIFICADOR) }
-    var ordenSeleccionadaId by rememberSaveable { mutableStateOf<String?>(null) }
-    var creando by rememberSaveable { mutableStateOf(false) }
-    val ordenSeleccionada = repository.ordenes.firstOrNull { it.id == ordenSeleccionadaId }
-
-    BackHandler(enabled = creando || ordenSeleccionada != null) {
-        creando = false
-        ordenSeleccionadaId = null
-    }
 
     Column(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
@@ -74,8 +85,7 @@ fun AcisApp(modifier: Modifier = Modifier) {
                         selected = perfil == opcion,
                         onClick = {
                             perfil = opcion
-                            creando = false
-                            ordenSeleccionadaId = null
+                            navController.popBackStack(RutasAcis.ORDENES, inclusive = false)
                         },
                         label = { Text(opcion.etiqueta) },
                     )
@@ -83,38 +93,83 @@ fun AcisApp(modifier: Modifier = Modifier) {
             }
         }
         HorizontalDivider()
-        when {
-            creando -> CrearOrden(
-                onVolver = { creando = false },
-                onCrear = { local, equipo, descripcion, fecha ->
-                    val id = repository.crear(local, equipo, descripcion, fecha)
-                    if (id != null) {
-                        creando = false
-                        ordenSeleccionadaId = id
-                    }
-                    id != null
-                },
-            )
-            ordenSeleccionada != null -> DetalleOrden(
-                orden = ordenSeleccionada,
-                perfil = perfil,
-                repository = repository,
-                onVolver = { ordenSeleccionadaId = null },
-            )
-            else -> ListaOrdenes(
-                ordenes = repository.ordenes.filter { orden ->
-                    when (perfil) {
-                        Perfil.PLANIFICADOR -> true
-                        Perfil.TECNICO -> orden.tecnico == OrdenesRepository.TECNICO_DEMO
-                        Perfil.CLIENTE -> orden.estado in setOf(
-                            EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.OBSERVADA, EstadoOt.CERRADA,
-                        )
-                    }
-                },
-                perfil = perfil,
-                onCrear = { creando = true },
-                onSeleccionar = { ordenSeleccionadaId = it },
-            )
+        NavHost(
+            navController = navController,
+            startDestination = RutasAcis.ORDENES,
+            modifier = Modifier.weight(1f),
+            enterTransition = {
+                fadeIn(tween(420)) + slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                    animationSpec = tween(420),
+                )
+            },
+            exitTransition = {
+                fadeOut(tween(350)) + slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                    animationSpec = tween(350),
+                )
+            },
+            popEnterTransition = {
+                fadeIn(tween(420)) + slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.End,
+                    animationSpec = tween(420),
+                )
+            },
+            popExitTransition = {
+                fadeOut(tween(350)) + slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.End,
+                    animationSpec = tween(350),
+                )
+            },
+        ) {
+            composable(RutasAcis.ORDENES) {
+                Crossfade(targetState = perfil, animationSpec = tween(420), label = "cambio de perfil") { perfilVisible ->
+                    ListaOrdenes(
+                        ordenes = repository.ordenes.filter { orden ->
+                            when (perfilVisible) {
+                                Perfil.PLANIFICADOR -> true
+                                Perfil.TECNICO -> orden.tecnico == OrdenesRepository.TECNICO_DEMO
+                                Perfil.CLIENTE -> orden.estado in setOf(
+                                    EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.OBSERVADA, EstadoOt.CERRADA,
+                                )
+                            }
+                        },
+                        perfil = perfilVisible,
+                        onCrear = { navController.navigate(RutasAcis.CREAR) },
+                        onSeleccionar = { navController.navigate(RutasAcis.detalle(it)) },
+                    )
+                }
+            }
+            composable(RutasAcis.CREAR) {
+                CrearOrden(
+                    onVolver = { navController.popBackStack() },
+                    onCrear = { local, equipo, descripcion, fecha ->
+                        val id = repository.crear(local, equipo, descripcion, fecha)
+                        if (id != null) {
+                            navController.navigate(RutasAcis.detalle(id)) {
+                                popUpTo(RutasAcis.ORDENES) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                        id != null
+                    },
+                )
+            }
+            composable(
+                route = RutasAcis.DETALLE,
+                arguments = listOf(navArgument("ordenId") { type = NavType.StringType }),
+            ) { entrada ->
+                val ordenId = entrada.arguments?.getString("ordenId")
+                val orden = repository.ordenes.firstOrNull { it.id == ordenId }
+                if (orden != null) {
+                    DetalleOrden(
+                        orden = orden,
+                        perfil = perfil,
+                        repository = repository,
+                        onVolver = { navController.popBackStack() },
+                    )
+                }
+            }
         }
     }
 }
@@ -162,8 +217,10 @@ private fun ListaOrdenes(
         items(ordenes, key = { it.id }) { orden ->
             Card(modifier = Modifier.fillMaxWidth().clickable { onSeleccionar(orden.id) }) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("${orden.id} · ${orden.estado.etiqueta}", style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary)
+                    AnimatedContent(targetState = orden.estado.etiqueta, label = "estado de OT") { estado ->
+                        Text("${orden.id} · $estado", style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
                     Text(orden.local, style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold)
                     Text(orden.equipo, style = MaterialTheme.typography.bodyMedium)
@@ -267,8 +324,10 @@ private fun DetalleOrden(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(orden.id, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text(orden.estado.etiqueta, style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary)
+                AnimatedContent(targetState = orden.estado.etiqueta, label = "estado del detalle") { estado ->
+                    Text(estado, style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                }
             }
         }
         item {
