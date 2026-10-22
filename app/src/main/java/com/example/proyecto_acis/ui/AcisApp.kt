@@ -1,5 +1,7 @@
 package com.example.proyecto_acis.ui
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,12 +35,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.proyecto_acis.data.EstadoOt
 import com.example.proyecto_acis.data.OrdenTrabajo
 import com.example.proyecto_acis.data.OrdenesRepository
 import com.example.proyecto_acis.data.Perfil
+import java.util.Calendar
+import java.util.Locale
 
 @Composable
 fun AcisApp(modifier: Modifier = Modifier) {
@@ -173,13 +180,25 @@ private fun CrearOrden(
     onVolver: () -> Unit,
     onCrear: (String, String, String, String) -> Boolean,
 ) {
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val ahora = remember { Calendar.getInstance() }
     var local by rememberSaveable { mutableStateOf("") }
     var equipo by rememberSaveable { mutableStateOf("") }
     var descripcion by rememberSaveable { mutableStateOf("") }
-    var fecha by rememberSaveable { mutableStateOf("") }
+    var dia by rememberSaveable { mutableStateOf(ahora.get(Calendar.DAY_OF_MONTH)) }
+    var mes by rememberSaveable { mutableStateOf(ahora.get(Calendar.MONTH)) }
+    var anio by rememberSaveable { mutableStateOf(ahora.get(Calendar.YEAR)) }
+    var hora by rememberSaveable { mutableStateOf(ahora.get(Calendar.HOUR_OF_DAY)) }
+    var minuto by rememberSaveable { mutableStateOf(ahora.get(Calendar.MINUTE)) }
+    var fechaElegida by rememberSaveable { mutableStateOf(false) }
+    var horaElegida by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf(false) }
+    val fecha = if (fechaElegida) String.format(Locale.forLanguageTag("es-CL"), "%02d/%02d/%04d", dia, mes + 1, anio) else ""
+    val horario = if (horaElegida) String.format(Locale.forLanguageTag("es-CL"), "%02d:%02d", hora, minuto) else ""
 
-    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
+    LazyColumn(modifier = Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { TextButton(onClick = onVolver) { Text("← Volver") } }
         item { Text("Nueva orden de trabajo", style = MaterialTheme.typography.headlineSmall) }
@@ -187,10 +206,44 @@ private fun CrearOrden(
         item { OutlinedTextField(equipo, { equipo = it }, label = { Text("Equipo") }, modifier = Modifier.fillMaxWidth()) }
         item { OutlinedTextField(descripcion, { descripcion = it }, label = { Text("Descripción del trabajo") },
             minLines = 3, modifier = Modifier.fillMaxWidth()) }
-        item { OutlinedTextField(fecha, { fecha = it }, label = { Text("Fecha y hora programada") },
-            placeholder = { Text("Ej.: 15/10/2026 09:00") }, modifier = Modifier.fillMaxWidth()) }
-        if (error) item { Text("Completa todos los campos para crear la OT.", color = MaterialTheme.colorScheme.error) }
-        item { Button(onClick = { error = !onCrear(local, equipo, descripcion, fecha) }) { Text("Guardar OT") } }
+        item { Text("Fecha y hora programada", style = MaterialTheme.typography.titleMedium) }
+        item {
+            OutlinedButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    DatePickerDialog(context, { _, nuevoAnio, nuevoMes, nuevoDia ->
+                        anio = nuevoAnio
+                        mes = nuevoMes
+                        dia = nuevoDia
+                        fechaElegida = true
+                    }, anio, mes, dia).show()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (fechaElegida) "Fecha: $fecha" else "Seleccionar fecha") }
+        }
+        item {
+            OutlinedButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    TimePickerDialog(context, { _, nuevaHora, nuevoMinuto ->
+                        hora = nuevaHora
+                        minuto = nuevoMinuto
+                        horaElegida = true
+                    }, hora, minuto, true).show()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (horaElegida) "Hora: $horario" else "Seleccionar hora") }
+        }
+        if (error) item { Text("Completa los campos y selecciona fecha y hora.", color = MaterialTheme.colorScheme.error) }
+        item {
+            Button(onClick = {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+                error = !onCrear(local, equipo, descripcion, if (fechaElegida && horaElegida) "$fecha $horario" else "")
+            }) { Text("Guardar OT") }
+        }
     }
 }
 
