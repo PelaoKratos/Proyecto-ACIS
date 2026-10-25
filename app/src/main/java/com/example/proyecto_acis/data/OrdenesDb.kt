@@ -31,7 +31,9 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         """.trimIndent())
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        error("Falta actualizar la base de datos de la versión $oldVersion a $newVersion")
+    }
 
     fun leer(): List<OrdenTrabajo> = readableDatabase.query(
         "ordenes", null, null, null, null, null, "id ASC",
@@ -64,32 +66,27 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         }
     }
 
-    fun guardar(ordenes: List<OrdenTrabajo>): Boolean {
+    fun insertar(orden: OrdenTrabajo): Boolean = try {
+        writableDatabase.insert("ordenes", null, valores(orden)) != -1L
+    } catch (_: Exception) {
+        false
+    }
+
+    fun actualizar(orden: OrdenTrabajo, estadoAnterior: EstadoOt): Boolean = try {
+        writableDatabase.update(
+            "ordenes", valores(orden), "id = ? AND estado = ?",
+            arrayOf(orden.id, estadoAnterior.name),
+        ) == 1
+    } catch (_: Exception) {
+        false
+    }
+
+    fun guardarTodas(ordenes: List<OrdenTrabajo>): Boolean {
         val db = writableDatabase
         return try {
             db.beginTransaction()
-            db.delete("ordenes", null, null)
             ordenes.forEach { orden ->
-                val valores = ContentValues().apply {
-                    put("id", orden.id)
-                    put("local", orden.local)
-                    put("equipo", orden.equipo)
-                    put("descripcion", orden.descripcion)
-                    put("fechaProgramada", orden.fechaProgramada)
-                    put("tipo", orden.tipo.name)
-                    put("prioridad", orden.prioridad.name)
-                    put("estado", orden.estado.name)
-                    put("tecnico", orden.tecnico)
-                    put("checkIn", orden.checkIn)
-                    put("checkOut", orden.checkOut)
-                    put("diagnostico", orden.diagnostico)
-                    put("actividad", orden.actividad)
-                    put("materiales", orden.materiales)
-                    put("observacionCliente", orden.observacionCliente)
-                    put("respuestaTecnico", orden.respuestaTecnico)
-                    put("fechaConformidad", orden.fechaConformidad)
-                }
-                if (db.insert("ordenes", null, valores) == -1L) error("No se pudo guardar la OT")
+                if (db.insert("ordenes", null, valores(orden)) == -1L) error("No se pudo guardar la OT")
             }
             db.setTransactionSuccessful()
             true
@@ -98,6 +95,26 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         } finally {
             if (db.inTransaction()) db.endTransaction()
         }
+    }
+
+    private fun valores(orden: OrdenTrabajo) = ContentValues().apply {
+        put("id", orden.id)
+        put("local", orden.local)
+        put("equipo", orden.equipo)
+        put("descripcion", orden.descripcion)
+        put("fechaProgramada", orden.fechaProgramada)
+        put("tipo", orden.tipo.name)
+        put("prioridad", orden.prioridad.name)
+        put("estado", orden.estado.name)
+        put("tecnico", orden.tecnico)
+        put("checkIn", orden.checkIn)
+        put("checkOut", orden.checkOut)
+        put("diagnostico", orden.diagnostico)
+        put("actividad", orden.actividad)
+        put("materiales", orden.materiales)
+        put("observacionCliente", orden.observacionCliente)
+        put("respuestaTecnico", orden.respuestaTecnico)
+        put("fechaConformidad", orden.fechaConformidad)
     }
 
     private fun Cursor.valor(campo: String): String = getString(getColumnIndexOrThrow(campo)).orEmpty()

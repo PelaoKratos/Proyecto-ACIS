@@ -12,7 +12,7 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 | IE 2.1.2 Formularios | 15 % | Creación, informe, observación y respuesta muestran errores junto a cada campo. | Revisar el resultado en un celular antes de la entrega. |
 | IE 2.2.1 Validación y estado | 10 % | Las reglas están en `ValidadorOt` y el estado de formularios en `OrdenesViewModel`. | Mantener esta separación al agregar funciones. |
 | IE 2.2.2 Animaciones | 10 % | Hay transiciones de navegación, perfil y estado. | Conservarlas y revisar su coherencia al reorganizar pantallas. |
-| IE 2.3.1 Modularidad y persistencia | 15 % | Órdenes guardadas en SQLite local; los datos anteriores se copian desde SharedPreferences. | Revisar la migración en un celular que ya tenga OT. |
+| IE 2.3.1 Modularidad y persistencia | 15 % | Órdenes guardadas en SQLite local; los datos anteriores se copian desde SharedPreferences. | Mantener esta estructura al agregar nuevos datos a la OT. |
 | IE 2.3.2 Colaboración | 20 % | Existe GitHub con commits; no se ha verificado tablero compartido ni README. | Crear README, tablero Trello/similar, tareas e historial de contribuciones reales de la pareja. |
 | IE 2.4.1 Recursos nativos | 15 % | Hay selectores de fecha/hora; no conviene depender de que se consideren los dos recursos exigidos. | Integrar cámara para evidencia de OT y ubicación al check-in, con permisos y manejo de rechazo. |
 
@@ -27,7 +27,7 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 
 ## Avance en feature/mvvm-validaciones
 
-Las reglas de validación están en `domain/ValidadorOt.kt` y el estado de los formularios y las acciones en `ui/OrdenesViewModel.kt`. El repositorio entrega las OT mediante `StateFlow`. La pantalla muestra errores por campo e íconos al crear una OT y al completar informe, observación y respuesta. La persistencia se trabaja en `feature/persistencia-local`.
+Las reglas de validación están en `domain/ValidadorOt.kt` y el estado de los formularios y las acciones en `ui/OrdenesViewModel.kt`. El repositorio entrega las OT mediante `StateFlow`. La pantalla muestra errores por campo e íconos al crear una OT y al completar informe, observación y respuesta. La persistencia usa SQLite y conserva los datos anteriores en SharedPreferences como respaldo.
 
 ## Criterios de cierre antes de entregar
 

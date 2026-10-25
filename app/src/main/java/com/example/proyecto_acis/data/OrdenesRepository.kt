@@ -26,16 +26,18 @@ class OrdenesRepository(context: Context) {
         if (tipo == TipoOt.SIN_ESPECIFICAR || prioridad == PrioridadOt.SIN_ESPECIFICAR) return null
         val siguiente = (_ordenes.value.mapNotNull { it.id.removePrefix("OT-").toIntOrNull() }.maxOrNull() ?: 1000) + 1
         val id = "OT-$siguiente"
-        return if (guardar(_ordenes.value + OrdenTrabajo(
-                id = id,
-                local = local.trim(),
-                equipo = equipo.trim(),
-                descripcion = descripcion.trim(),
-                fechaProgramada = fecha.trim(),
-                tipo = tipo,
-                prioridad = prioridad,
-            ))) id
-        else null
+        val nueva = OrdenTrabajo(
+            id = id,
+            local = local.trim(),
+            equipo = equipo.trim(),
+            descripcion = descripcion.trim(),
+            fechaProgramada = fecha.trim(),
+            tipo = tipo,
+            prioridad = prioridad,
+        )
+        if (!database.insertar(nueva)) return null
+        _ordenes.value = _ordenes.value + nueva
+        return id
     }
 
     fun asignar(id: String): Boolean = cambiar(id, EstadoOt.CREADA) {
@@ -88,24 +90,17 @@ class OrdenesRepository(context: Context) {
 
     private fun cambiar(id: String, estadoRequerido: EstadoOt, cambio: (OrdenTrabajo) -> OrdenTrabajo): Boolean {
         val actual = _ordenes.value.firstOrNull { it.id == id && it.estado == estadoRequerido } ?: return false
-        return guardar(_ordenes.value.map { if (it.id == id) cambio(actual) else it })
-    }
-
-    private fun guardar(nuevas: List<OrdenTrabajo>): Boolean {
-        val guardado = database.guardar(nuevas)
-        if (guardado) {
-            _ordenes.value = nuevas
-        }
-        return guardado
+        val nueva = cambio(actual)
+        if (!database.actualizar(nueva, estadoRequerido)) return false
+        _ordenes.value = _ordenes.value.map { if (it.id == id) nueva else it }
+        return true
     }
 
     private fun cargarOrdenes(): List<OrdenTrabajo> {
         val actuales = database.leer()
         if (actuales.isNotEmpty()) return actuales
         val anteriores = leerOrdenesAnteriores()
-        if (anteriores.isNotEmpty() && database.guardar(anteriores)) {
-            preferences.edit().remove("ordenes").apply()
-        }
+        if (anteriores.isNotEmpty()) database.guardarTodas(anteriores)
         return anteriores
     }
 
