@@ -14,14 +14,14 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 | IE 2.2.2 Animaciones | 10 % | Hay transiciones de navegación, perfil y estado. | Conservarlas y revisar su coherencia al reorganizar pantallas. |
 | IE 2.3.1 Modularidad y persistencia | 15 % | Órdenes guardadas en SQLite local; los datos anteriores se copian desde SharedPreferences. | Mantener esta estructura al agregar nuevos datos a la OT. |
 | IE 2.3.2 Colaboración | 20 % | Existe GitHub con commits; no se ha verificado tablero compartido ni README. | Crear README, tablero Trello/similar, tareas e historial de contribuciones reales de la pareja. |
-| IE 2.4.1 Recursos nativos | 15 % | Hay selectores de fecha/hora; no conviene depender de que se consideren los dos recursos exigidos. | Integrar cámara para evidencia de OT y ubicación al check-in, con permisos y manejo de rechazo. |
+| IE 2.4.1 Recursos nativos | 15 % | La rama de cámara permite tomar una foto durante la visita y guardarla en la OT. | Revisar la cámara en un celular e integrar ubicación al check-in. |
 
 ## Orden de implementación
 
 1. **Base de arquitectura:** separar pantallas/componentes de `AcisApp.kt`, introducir ViewModel para estado y eventos, definir interfaz de repositorio y reglas de dominio. Conservar el recorrido existente.
 2. **Formularios:** centralizar reglas, errores específicos e íconos para creación de OT, informe técnico y conformidad. Validar antes de persistir o cambiar estado.
 3. **Persistencia:** pasar a almacenamiento estructurado local, incluyendo una migración de las OT actuales. Mantener el trabajo sin conexión.
-4. **Recursos nativos:** cámara para adjuntar foto al informe y ubicación puntual al registrar check-in. Pedir permisos en contexto, explicar su uso y mantener un camino funcional si se rechazan.
+4. **Recursos nativos:** cámara del sistema para adjuntar foto al informe y ubicación puntual al registrar check-in. Pedir el permiso de ubicación en contexto y mantener un camino funcional si se rechaza.
 5. **Entrega y colaboración:** README completo, tablero compartido, tareas/commits repartidos y revisión del proyecto en dispositivo físico. Preparar el código fuente para GitHub y AVA.
 6. **Pulido final:** consistencia de Material 3, adaptabilidad, accesibilidad y animaciones. La referencia está en `docs/material3-referencia.md`.
 

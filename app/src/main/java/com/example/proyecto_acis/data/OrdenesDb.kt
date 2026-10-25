@@ -6,7 +6,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db", null, 1) {
+class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db", null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE ordenes (
@@ -26,13 +26,16 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
                 materiales TEXT NOT NULL,
                 observacionCliente TEXT NOT NULL,
                 respuestaTecnico TEXT NOT NULL,
-                fechaConformidad TEXT NOT NULL
+                fechaConformidad TEXT NOT NULL,
+                fotoEvidencia TEXT NOT NULL DEFAULT ''
             )
         """.trimIndent())
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        error("Falta actualizar la base de datos de la versión $oldVersion a $newVersion")
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE ordenes ADD COLUMN fotoEvidencia TEXT NOT NULL DEFAULT ''")
+        }
     }
 
     fun leer(): List<OrdenTrabajo> = readableDatabase.query(
@@ -61,6 +64,7 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
                     observacionCliente = cursor.valor("observacionCliente"),
                     respuestaTecnico = cursor.valor("respuestaTecnico"),
                     fechaConformidad = cursor.valor("fechaConformidad"),
+                    fotoEvidencia = cursor.valor("fotoEvidencia"),
                 ))
             }
         }
@@ -115,6 +119,7 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         put("observacionCliente", orden.observacionCliente)
         put("respuestaTecnico", orden.respuestaTecnico)
         put("fechaConformidad", orden.fechaConformidad)
+        put("fotoEvidencia", orden.fotoEvidencia)
     }
 
     private fun Cursor.valor(campo: String): String = getString(getColumnIndexOrThrow(campo)).orEmpty()

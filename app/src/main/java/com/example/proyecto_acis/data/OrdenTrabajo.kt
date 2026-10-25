@@ -47,4 +47,5 @@ data class OrdenTrabajo(
     val observacionCliente: String = "",
     val respuestaTecnico: String = "",
     val fechaConformidad: String = "",
+    val fotoEvidencia: String = "",
 )
