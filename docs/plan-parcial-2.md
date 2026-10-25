@@ -14,7 +14,7 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 | IE 2.2.2 Animaciones | 10 % | Hay transiciones de navegación, perfil y estado. | Conservarlas y revisar su coherencia al reorganizar pantallas. |
 | IE 2.3.1 Modularidad y persistencia | 15 % | Órdenes guardadas en SQLite local; los datos anteriores se copian desde SharedPreferences. | Mantener esta estructura al agregar nuevos datos a la OT. |
 | IE 2.3.2 Colaboración | 20 % | Existe GitHub con commits; no se ha verificado tablero compartido ni README. | Crear README, tablero Trello/similar, tareas e historial de contribuciones reales de la pareja. |
-| IE 2.4.1 Recursos nativos | 15 % | La rama de cámara permite tomar una foto durante la visita y guardarla en la OT. | Revisar la cámara en un celular e integrar ubicación al check-in. |
+| IE 2.4.1 Recursos nativos | 15 % | La cámara guarda una foto en la OT y el check-in solicita ubicación aproximada. | Revisar la ubicación en un celular, con permiso aceptado y rechazado. |
 
 ## Orden de implementación
 

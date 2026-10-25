@@ -40,6 +40,7 @@ data class OrdenTrabajo(
     val estado: EstadoOt = EstadoOt.CREADA,
     val tecnico: String = "",
     val checkIn: String = "",
+    val ubicacionCheckIn: String = "",
     val checkOut: String = "",
     val diagnostico: String = "",
     val actividad: String = "",

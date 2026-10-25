@@ -120,7 +120,14 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
 
     fun asignar(id: String) = repository.asignar(id)
     fun aceptar(id: String) = repository.aceptar(id)
-    fun iniciarVisita(id: String) = repository.iniciarVisita(id)
+    fun iniciarVisita(id: String, ubicacion: String?) {
+        val guardado = repository.iniciarVisita(id, ubicacion)
+        mensajeDetalle = id to when {
+            !guardado -> "No se pudo iniciar la visita."
+            ubicacion == null -> "Check-in registrado sin ubicación."
+            else -> "Check-in registrado con ubicación."
+        }
+    }
     fun aprobar(id: String) = repository.aprobar(id)
 
     fun guardarBorrador(id: String, diagnostico: String, actividad: String, materiales: String) {

@@ -6,7 +6,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db", null, 3) {
+class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db", null, 4) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE ordenes (
@@ -20,6 +20,7 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
                 estado TEXT NOT NULL,
                 tecnico TEXT NOT NULL,
                 checkIn TEXT NOT NULL,
+                ubicacionCheckIn TEXT NOT NULL DEFAULT '',
                 checkOut TEXT NOT NULL,
                 diagnostico TEXT NOT NULL,
                 actividad TEXT NOT NULL,
@@ -39,6 +40,9 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         }
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE ordenes ADD COLUMN ultimaActualizacion INTEGER NOT NULL DEFAULT 0")
+        }
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE ordenes ADD COLUMN ubicacionCheckIn TEXT NOT NULL DEFAULT ''")
         }
     }
 
@@ -61,6 +65,7 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
                         ?: EstadoOt.CREADA,
                     tecnico = cursor.valor("tecnico"),
                     checkIn = cursor.valor("checkIn"),
+                    ubicacionCheckIn = cursor.valor("ubicacionCheckIn"),
                     checkOut = cursor.valor("checkOut"),
                     diagnostico = cursor.valor("diagnostico"),
                     actividad = cursor.valor("actividad"),
@@ -117,6 +122,7 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         put("estado", orden.estado.name)
         put("tecnico", orden.tecnico)
         put("checkIn", orden.checkIn)
+        put("ubicacionCheckIn", orden.ubicacionCheckIn)
         put("checkOut", orden.checkOut)
         put("diagnostico", orden.diagnostico)
         put("actividad", orden.actividad)

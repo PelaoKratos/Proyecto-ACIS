@@ -3,6 +3,8 @@ package com.example.proyecto_acis.ui
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -65,6 +67,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -75,6 +78,7 @@ import com.example.proyecto_acis.data.OrdenTrabajo
 import com.example.proyecto_acis.data.Perfil
 import com.example.proyecto_acis.data.PrioridadOt
 import com.example.proyecto_acis.data.TipoOt
+import com.example.proyecto_acis.data.obtenerUbicacionCheckIn
 import java.util.Calendar
 import java.io.File
 import java.util.Locale
@@ -365,6 +369,20 @@ private fun DetalleOrden(
     onVolver: () -> Unit,
 ) {
     val context = LocalContext.current
+    val scopeUbicacion = rememberCoroutineScope()
+    var buscandoUbicacion by rememberSaveable(orden.id) { mutableStateOf(false) }
+    val iniciarConUbicacion: () -> Unit = {
+        buscandoUbicacion = true
+        scopeUbicacion.launch {
+            val ubicacion = obtenerUbicacionCheckIn(context)
+            viewModel.iniciarVisita(orden.id, ubicacion)
+            buscandoUbicacion = false
+        }
+    }
+    val permisoUbicacion = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { concedido ->
+        if (concedido) iniciarConUbicacion()
+        else viewModel.iniciarVisita(orden.id, null)
+    }
     var fotoPendiente by rememberSaveable(orden.id) { mutableStateOf("") }
     var errorCamara by rememberSaveable(orden.id) { mutableStateOf("") }
     val camara = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { guardada ->
@@ -412,6 +430,7 @@ private fun DetalleOrden(
                     CampoDetalle("Trabajo solicitado", orden.descripcion)
                     if (orden.tecnico.isNotBlank()) CampoDetalle("Técnico", orden.tecnico)
                     if (orden.checkIn.isNotBlank()) CampoDetalle("Check-in", orden.checkIn)
+                    if (orden.ubicacionCheckIn.isNotBlank()) CampoDetalle("Ubicación del check-in", orden.ubicacionCheckIn)
                     if (orden.checkOut.isNotBlank()) CampoDetalle("Check-out", orden.checkOut)
                     if (orden.diagnostico.isNotBlank()) CampoDetalle("Diagnóstico", orden.diagnostico)
                     if (orden.actividad.isNotBlank()) CampoDetalle("Actividad", orden.actividad)
@@ -443,7 +462,19 @@ private fun DetalleOrden(
             item { Button(onClick = { viewModel.aceptar(orden.id) }) { Text("Aceptar OT") } }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.ACEPTADA) {
-            item { Button(onClick = { viewModel.iniciarVisita(orden.id) }) { Text("Iniciar visita y registrar check-in") } }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Se pedirá ubicación aproximada para el check-in. Puedes continuar si no la permites.",
+                        style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+                            == PackageManager.PERMISSION_GRANTED) iniciarConUbicacion()
+                        else permisoUbicacion.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    }, enabled = !buscandoUbicacion) {
+                        Text(if (buscandoUbicacion) "Buscando ubicación..." else "Iniciar visita y registrar check-in")
+                    }
+                }
+            }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA) {
             item { Text("Informe técnico", style = MaterialTheme.typography.titleLarge) }
