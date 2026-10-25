@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,9 +41,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -61,6 +65,7 @@ import com.example.proyecto_acis.data.PrioridadOt
 import com.example.proyecto_acis.data.TipoOt
 import java.util.Calendar
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private object RutasAcis {
     const val ORDENES = "ordenes"
@@ -355,7 +360,7 @@ private fun DetalleOrden(
     val errorRespuesta = viewModel.errorRespuesta(orden.id, respuesta)
     val mensaje = viewModel.mensaje(orden.id)
 
-    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
+    LazyColumn(modifier = Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { TextButton(onClick = onVolver) { Text("← Volver a órdenes") } }
         item {
@@ -451,6 +456,8 @@ private fun CampoFormulario(
     error: String? = null,
     minLines: Int = 1,
 ) {
+    val traerAlFrente = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
     OutlinedTextField(
         value = valor,
         onValueChange = onCambio,
@@ -458,7 +465,11 @@ private fun CampoFormulario(
         isError = error != null,
         supportingText = error?.let { mensaje -> { Text(mensaje) } },
         minLines = minLines,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth()
+            .bringIntoViewRequester(traerAlFrente)
+            .onFocusChanged { foco ->
+                if (foco.isFocused) scope.launch { traerAlFrente.bringIntoView() }
+            },
     )
 }
 
