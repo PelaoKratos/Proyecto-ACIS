@@ -113,7 +113,10 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
                     EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.OBSERVADA, EstadoOt.CERRADA,
                 )
             }
-        }
+        }.sortedWith(
+            compareByDescending<OrdenTrabajo> { it.ultimaActualizacion }
+                .thenByDescending { it.id.removePrefix("OT-").toIntOrNull() ?: 0 },
+        )
 
     fun asignar(id: String) = repository.asignar(id)
     fun aceptar(id: String) = repository.aceptar(id)

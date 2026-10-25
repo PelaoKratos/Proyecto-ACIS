@@ -48,4 +48,5 @@ data class OrdenTrabajo(
     val respuestaTecnico: String = "",
     val fechaConformidad: String = "",
     val fotoEvidencia: String = "",
+    val ultimaActualizacion: Long = 0L,
 )

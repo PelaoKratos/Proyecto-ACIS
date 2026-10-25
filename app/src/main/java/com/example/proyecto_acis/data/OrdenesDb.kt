@@ -6,7 +6,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db", null, 2) {
+class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db", null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE ordenes (
@@ -27,7 +27,8 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
                 observacionCliente TEXT NOT NULL,
                 respuestaTecnico TEXT NOT NULL,
                 fechaConformidad TEXT NOT NULL,
-                fotoEvidencia TEXT NOT NULL DEFAULT ''
+                fotoEvidencia TEXT NOT NULL DEFAULT '',
+                ultimaActualizacion INTEGER NOT NULL DEFAULT 0
             )
         """.trimIndent())
     }
@@ -35,6 +36,9 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             db.execSQL("ALTER TABLE ordenes ADD COLUMN fotoEvidencia TEXT NOT NULL DEFAULT ''")
+        }
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE ordenes ADD COLUMN ultimaActualizacion INTEGER NOT NULL DEFAULT 0")
         }
     }
 
@@ -65,6 +69,7 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
                     respuestaTecnico = cursor.valor("respuestaTecnico"),
                     fechaConformidad = cursor.valor("fechaConformidad"),
                     fotoEvidencia = cursor.valor("fotoEvidencia"),
+                    ultimaActualizacion = cursor.getLong(cursor.getColumnIndexOrThrow("ultimaActualizacion")),
                 ))
             }
         }
@@ -120,6 +125,7 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         put("respuestaTecnico", orden.respuestaTecnico)
         put("fechaConformidad", orden.fechaConformidad)
         put("fotoEvidencia", orden.fotoEvidencia)
+        put("ultimaActualizacion", orden.ultimaActualizacion)
     }
 
     private fun Cursor.valor(campo: String): String = getString(getColumnIndexOrThrow(campo)).orEmpty()
