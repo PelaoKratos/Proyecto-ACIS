@@ -13,7 +13,7 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 | IE 2.2.1 Validación y estado | 10 % | Las reglas están en `ValidadorOt` y el estado de formularios en `OrdenesViewModel`. | Mantener esta separación al agregar funciones. |
 | IE 2.2.2 Animaciones | 10 % | Hay transiciones de navegación, perfil y estado. | Conservarlas y revisar su coherencia al reorganizar pantallas. |
 | IE 2.3.1 Modularidad y persistencia | 15 % | Órdenes guardadas en SQLite local; los datos anteriores se copian desde SharedPreferences. | Mantener esta estructura al agregar nuevos datos a la OT. |
-| IE 2.3.2 Colaboración | 20 % | Existe GitHub con ramas y commits; el README explica funciones y ejecución. | Completar integrantes y verificar tablero compartido y contribuciones de la pareja. |
+| IE 2.3.2 Colaboración | 20 % | Existe GitHub con ramas y commits; el README incluye integrantes, funciones y ejecución. | Verificar tablero compartido y contribuciones de la pareja. |
 | IE 2.4.1 Recursos nativos | 15 % | La cámara guarda una foto en la OT y el check-in solicita ubicación aproximada. | Ambos recursos funcionaron en la revisión manual del celular. |
 
 ## Orden de implementación
