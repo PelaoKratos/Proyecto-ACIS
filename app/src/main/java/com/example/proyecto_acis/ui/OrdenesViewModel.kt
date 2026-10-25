@@ -126,6 +126,13 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
         else "No se pudo guardar el borrador."
     }
 
+    fun guardarFoto(id: String, nombre: String): Boolean {
+        val guardado = repository.guardarFoto(id, nombre)
+        mensajeDetalle = id to if (guardado) "Foto guardada en esta OT."
+        else "No se pudo guardar la foto."
+        return guardado
+    }
+
     fun finalizarVisita(id: String, diagnostico: String, actividad: String, materiales: String) {
         ordenInformeConErrores = id
         if (ValidadorOt.informe(diagnostico, actividad).hayErrores) {

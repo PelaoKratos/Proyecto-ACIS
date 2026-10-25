@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -11,6 +12,7 @@ import java.util.Locale
 class OrdenesRepository(context: Context) {
     private val preferences = context.getSharedPreferences("acis_ordenes_locales", Context.MODE_PRIVATE)
     private val database = OrdenesDb(context)
+    private val fotos = File(context.filesDir, "evidencias")
     private val _ordenes = MutableStateFlow(cargarOrdenes())
     val ordenes = _ordenes.asStateFlow()
 
@@ -56,6 +58,15 @@ class OrdenesRepository(context: Context) {
         cambiar(id, EstadoOt.EN_VISITA) {
             it.copy(diagnostico = diagnostico.trim(), actividad = actividad.trim(), materiales = materiales.trim())
         }
+
+    fun guardarFoto(id: String, nombre: String): Boolean {
+        val archivo = File(fotos, nombre)
+        if (nombre != File(nombre).name || !archivo.isFile || archivo.length() == 0L) return false
+        val anterior = _ordenes.value.firstOrNull { it.id == id }?.fotoEvidencia.orEmpty()
+        val guardado = cambiar(id, EstadoOt.EN_VISITA) { it.copy(fotoEvidencia = nombre) }
+        if (guardado && anterior.isNotBlank() && anterior != nombre) File(fotos, anterior).delete()
+        return guardado
+    }
 
     fun enviarInforme(id: String, diagnostico: String, actividad: String, materiales: String): Boolean {
         if (diagnostico.isBlank() || actividad.isBlank()) return false

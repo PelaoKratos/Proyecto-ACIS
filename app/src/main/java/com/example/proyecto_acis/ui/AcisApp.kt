@@ -2,6 +2,10 @@ package com.example.proyecto_acis.ui
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.ActivityNotFoundException
+import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.Crossfade
@@ -9,6 +13,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +51,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +62,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -66,7 +74,9 @@ import com.example.proyecto_acis.data.Perfil
 import com.example.proyecto_acis.data.PrioridadOt
 import com.example.proyecto_acis.data.TipoOt
 import java.util.Calendar
+import java.io.File
 import java.util.Locale
+import java.util.UUID
 import kotlinx.coroutines.launch
 
 private object RutasAcis {
@@ -352,6 +362,22 @@ private fun DetalleOrden(
     viewModel: OrdenesViewModel,
     onVolver: () -> Unit,
 ) {
+    val context = LocalContext.current
+    var fotoPendiente by rememberSaveable(orden.id) { mutableStateOf("") }
+    var errorCamara by rememberSaveable(orden.id) { mutableStateOf("") }
+    val camara = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { guardada ->
+        val nombre = fotoPendiente
+        fotoPendiente = ""
+        if (nombre.isNotBlank()) {
+            val archivo = File(File(context.filesDir, "evidencias"), nombre)
+            if (guardada && viewModel.guardarFoto(orden.id, nombre)) {
+                errorCamara = ""
+            } else {
+                archivo.delete()
+                if (guardada) errorCamara = "No se pudo guardar la foto."
+            }
+        }
+    }
     val formulario = viewModel.formularioDetalle(orden)
     val erroresInforme = viewModel.erroresInforme(orden.id, formulario.diagnostico, formulario.actividad)
     val errorObservacion = viewModel.errorObservacion(orden.id, formulario.observacion)
@@ -391,6 +417,20 @@ private fun DetalleOrden(
                     if (orden.observacionCliente.isNotBlank()) CampoDetalle("Observación del cliente", orden.observacionCliente)
                     if (orden.respuestaTecnico.isNotBlank()) CampoDetalle("Respuesta del técnico", orden.respuestaTecnico)
                     if (orden.fechaConformidad.isNotBlank()) CampoDetalle("Conformidad", orden.fechaConformidad)
+                    if (orden.fotoEvidencia.isNotBlank()) {
+                        val archivo = File(File(context.filesDir, "evidencias"), orden.fotoEvidencia)
+                        val foto = remember(orden.fotoEvidencia) {
+                            val opciones = BitmapFactory.Options().apply { inSampleSize = 4 }
+                            BitmapFactory.decodeFile(archivo.path, opciones)?.asImageBitmap()
+                        }
+                        if (foto != null) {
+                            Text("Foto de evidencia", style = MaterialTheme.typography.titleSmall)
+                            Image(foto, contentDescription = "Evidencia de ${orden.id}",
+                                modifier = Modifier.fillMaxWidth().height(180.dp), contentScale = ContentScale.Crop)
+                        } else {
+                            Text("Foto de evidencia no disponible", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 }
             }
         }
@@ -405,6 +445,33 @@ private fun DetalleOrden(
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA) {
             item { Text("Informe técnico", style = MaterialTheme.typography.titleLarge) }
+            item {
+                OutlinedButton(onClick = {
+                    var archivoNuevo: File? = null
+                    try {
+                        val carpeta = File(context.filesDir, "evidencias")
+                        if (!carpeta.exists()) carpeta.mkdirs()
+                        val archivo = File(carpeta, "${orden.id}_${UUID.randomUUID()}.jpg")
+                        archivo.createNewFile()
+                        archivoNuevo = archivo
+                        fotoPendiente = archivo.name
+                        errorCamara = ""
+                        val uri = FileProvider.getUriForFile(
+                            context, "${context.packageName}.fileprovider", archivo,
+                        )
+                        camara.launch(uri)
+                    } catch (_: ActivityNotFoundException) {
+                        archivoNuevo?.delete()
+                        fotoPendiente = ""
+                        errorCamara = "No hay una cámara disponible en este dispositivo."
+                    } catch (_: Exception) {
+                        archivoNuevo?.delete()
+                        fotoPendiente = ""
+                        errorCamara = "No se pudo abrir la cámara."
+                    }
+                }) { Text(if (orden.fotoEvidencia.isBlank()) "Tomar foto de evidencia" else "Cambiar foto de evidencia") }
+            }
+            if (errorCamara.isNotBlank()) item { Text(errorCamara, color = MaterialTheme.colorScheme.error) }
             item { CampoFormulario(formulario.diagnostico, { viewModel.cambiarDiagnostico(orden.id, it) }, "Diagnóstico",
                 erroresInforme.diagnostico, minLines = 2) }
             item { CampoFormulario(formulario.actividad, { viewModel.cambiarActividad(orden.id, it) }, "Actividad realizada",
