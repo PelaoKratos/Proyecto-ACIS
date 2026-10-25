@@ -51,8 +51,8 @@ class OrdenesRepository(context: Context) {
         it.copy(estado = EstadoOt.ACEPTADA)
     }
 
-    fun iniciarVisita(id: String): Boolean = cambiar(id, EstadoOt.ACEPTADA) {
-        it.copy(estado = EstadoOt.EN_VISITA, checkIn = ahora())
+    fun iniciarVisita(id: String, ubicacion: String?): Boolean = cambiar(id, EstadoOt.ACEPTADA) {
+        it.copy(estado = EstadoOt.EN_VISITA, checkIn = ahora(), ubicacionCheckIn = ubicacion.orEmpty())
     }
 
     fun guardarBorrador(id: String, diagnostico: String, actividad: String, materiales: String): Boolean =
