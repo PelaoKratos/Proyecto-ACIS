@@ -1,9 +1,8 @@
 package com.example.proyecto_acis.data
 
 import android.content.Context
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -13,8 +12,8 @@ import java.util.Locale
 /** Almacenamiento local para el primer recorrido. Aún no existe un servicio remoto. */
 class OrdenesRepository(context: Context) {
     private val preferences = context.getSharedPreferences("acis_ordenes_locales", Context.MODE_PRIVATE)
-    var ordenes by mutableStateOf(leerOrdenes())
-        private set
+    private val _ordenes = MutableStateFlow(leerOrdenes())
+    val ordenes = _ordenes.asStateFlow()
 
     fun crear(
         local: String,
@@ -26,9 +25,9 @@ class OrdenesRepository(context: Context) {
     ): String? {
         if (listOf(local, equipo, descripcion, fecha).any { it.isBlank() }) return null
         if (tipo == TipoOt.SIN_ESPECIFICAR || prioridad == PrioridadOt.SIN_ESPECIFICAR) return null
-        val siguiente = (ordenes.mapNotNull { it.id.removePrefix("OT-").toIntOrNull() }.maxOrNull() ?: 1000) + 1
+        val siguiente = (_ordenes.value.mapNotNull { it.id.removePrefix("OT-").toIntOrNull() }.maxOrNull() ?: 1000) + 1
         val id = "OT-$siguiente"
-        return if (guardar(ordenes + OrdenTrabajo(
+        return if (guardar(_ordenes.value + OrdenTrabajo(
                 id = id,
                 local = local.trim(),
                 equipo = equipo.trim(),
@@ -89,8 +88,8 @@ class OrdenesRepository(context: Context) {
     }
 
     private fun cambiar(id: String, estadoRequerido: EstadoOt, cambio: (OrdenTrabajo) -> OrdenTrabajo): Boolean {
-        val actual = ordenes.firstOrNull { it.id == id && it.estado == estadoRequerido } ?: return false
-        return guardar(ordenes.map { if (it.id == id) cambio(actual) else it })
+        val actual = _ordenes.value.firstOrNull { it.id == id && it.estado == estadoRequerido } ?: return false
+        return guardar(_ordenes.value.map { if (it.id == id) cambio(actual) else it })
     }
 
     private fun guardar(nuevas: List<OrdenTrabajo>): Boolean {
@@ -118,7 +117,7 @@ class OrdenesRepository(context: Context) {
         }
         val guardado = preferences.edit().putString("ordenes", json.toString()).commit()
         if (guardado) {
-            ordenes = nuevas
+            _ordenes.value = nuevas
         }
         return guardado
     }

@@ -25,6 +25,10 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 5. **Entrega y colaboración:** README completo, tablero compartido, tareas/commits repartidos y revisión del proyecto en dispositivo físico. Preparar el código fuente para GitHub y AVA.
 6. **Pulido final:** consistencia de Material 3, adaptabilidad, accesibilidad y animaciones. La referencia está en `docs/material3-referencia.md`.
 
+## Avance en Desarrollo-2.0
+
+El primer cambio separa las reglas de validación en `domain/ValidadorOt.kt` y el estado y las acciones en `ui/OrdenesViewModel.kt`. El repositorio entrega las OT mediante `StateFlow`. La pantalla muestra errores por campo al crear una OT y al completar informe, observación y respuesta. Falta integrar íconos, recursos nativos y mejorar la persistencia.
+
 ## Criterios de cierre antes de entregar
 
 - Cada formulario requerido muestra el error junto al campo correspondiente y no guarda entradas inválidas.
