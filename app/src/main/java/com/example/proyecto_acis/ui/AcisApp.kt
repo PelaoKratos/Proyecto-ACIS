@@ -23,11 +23,14 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -35,16 +38,20 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
@@ -55,12 +62,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.proyecto_acis.data.EstadoOt
 import com.example.proyecto_acis.data.OrdenTrabajo
-import com.example.proyecto_acis.data.OrdenesRepository
 import com.example.proyecto_acis.data.Perfil
 import com.example.proyecto_acis.data.PrioridadOt
 import com.example.proyecto_acis.data.TipoOt
 import java.util.Calendar
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private object RutasAcis {
     const val ORDENES = "ordenes"
@@ -71,11 +78,10 @@ private object RutasAcis {
 }
 
 @Composable
-fun AcisApp(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val repository = remember { OrdenesRepository(context.applicationContext) }
+fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
     val navController = rememberNavController()
-    var perfil by rememberSaveable { mutableStateOf(Perfil.PLANIFICADOR) }
+    val ordenes by viewModel.ordenes.collectAsState()
+    val perfil = viewModel.perfil
 
     Column(modifier = modifier.fillMaxSize()) {
         Surface(
@@ -94,7 +100,7 @@ fun AcisApp(modifier: Modifier = Modifier) {
                         FilterChip(
                             selected = perfil == opcion,
                             onClick = {
-                                perfil = opcion
+                                viewModel.seleccionarPerfil(opcion)
                                 navController.popBackStack(RutasAcis.ORDENES, inclusive = false)
                             },
                             label = { Text(opcion.etiqueta) },
@@ -136,15 +142,7 @@ fun AcisApp(modifier: Modifier = Modifier) {
             composable(RutasAcis.ORDENES) {
                 Crossfade(targetState = perfil, animationSpec = tween(420), label = "cambio de perfil") { perfilVisible ->
                     ListaOrdenes(
-                        ordenes = repository.ordenes.filter { orden ->
-                            when (perfilVisible) {
-                                Perfil.PLANIFICADOR -> true
-                                Perfil.TECNICO -> orden.tecnico == OrdenesRepository.TECNICO_DEMO
-                                Perfil.CLIENTE -> orden.estado in setOf(
-                                    EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.OBSERVADA, EstadoOt.CERRADA,
-                                )
-                            }
-                        },
+                        ordenes = viewModel.ordenesParaPerfil(ordenes, perfilVisible),
                         perfil = perfilVisible,
                         onCrear = { navController.navigate(RutasAcis.CREAR) },
                         onSeleccionar = { navController.navigate(RutasAcis.detalle(it)) },
@@ -153,16 +151,16 @@ fun AcisApp(modifier: Modifier = Modifier) {
             }
             composable(RutasAcis.CREAR) {
                 CrearOrden(
+                    viewModel = viewModel,
                     onVolver = { navController.popBackStack() },
-                    onCrear = { local, equipo, descripcion, fecha, tipo, prioridad ->
-                        val id = repository.crear(local, equipo, descripcion, fecha, tipo, prioridad)
+                    onCrear = {
+                        val id = viewModel.crear()
                         if (id != null) {
                             navController.navigate(RutasAcis.detalle(id)) {
                                 popUpTo(RutasAcis.ORDENES) { inclusive = false }
                                 launchSingleTop = true
                             }
                         }
-                        id != null
                     },
                 )
             }
@@ -171,12 +169,12 @@ fun AcisApp(modifier: Modifier = Modifier) {
                 arguments = listOf(navArgument("ordenId") { type = NavType.StringType }),
             ) { entrada ->
                 val ordenId = entrada.arguments?.getString("ordenId")
-                val orden = repository.ordenes.firstOrNull { it.id == ordenId }
+                val orden = ordenes.firstOrNull { it.id == ordenId }
                 if (orden != null) {
                     DetalleOrden(
                         orden = orden,
                         perfil = perfil,
-                        repository = repository,
+                        viewModel = viewModel,
                         onVolver = { navController.popBackStack() },
                     )
                 }
@@ -252,57 +250,52 @@ private fun ListaOrdenes(
 
 @Composable
 private fun CrearOrden(
+    viewModel: OrdenesViewModel,
     onVolver: () -> Unit,
-    onCrear: (String, String, String, String, TipoOt, PrioridadOt) -> Boolean,
+    onCrear: () -> Unit,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val ahora = remember { Calendar.getInstance() }
-    var local by rememberSaveable { mutableStateOf("") }
-    var equipo by rememberSaveable { mutableStateOf("") }
-    var descripcion by rememberSaveable { mutableStateOf("") }
-    var tipoSeleccionado by rememberSaveable { mutableStateOf<TipoOt?>(null) }
-    var prioridadSeleccionada by rememberSaveable { mutableStateOf<PrioridadOt?>(null) }
+    val datos = viewModel.datosCrear
+    val errores = viewModel.erroresCrear
     var dia by rememberSaveable { mutableStateOf(ahora.get(Calendar.DAY_OF_MONTH)) }
     var mes by rememberSaveable { mutableStateOf(ahora.get(Calendar.MONTH)) }
     var anio by rememberSaveable { mutableStateOf(ahora.get(Calendar.YEAR)) }
     var hora by rememberSaveable { mutableStateOf(ahora.get(Calendar.HOUR_OF_DAY)) }
     var minuto by rememberSaveable { mutableStateOf(ahora.get(Calendar.MINUTE)) }
-    var fechaElegida by rememberSaveable { mutableStateOf(false) }
-    var horaElegida by rememberSaveable { mutableStateOf(false) }
-    var error by rememberSaveable { mutableStateOf(false) }
-    val fecha = if (fechaElegida) String.format(Locale.forLanguageTag("es-CL"), "%02d/%02d/%04d", dia, mes + 1, anio) else ""
-    val horario = if (horaElegida) String.format(Locale.forLanguageTag("es-CL"), "%02d:%02d", hora, minuto) else ""
 
     LazyColumn(modifier = Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { TextButton(onClick = onVolver) { Text("← Volver") } }
         item { Text("Nueva orden de trabajo", style = MaterialTheme.typography.headlineSmall) }
-        item { OutlinedTextField(local, { local = it }, label = { Text("Local") }, modifier = Modifier.fillMaxWidth()) }
-        item { OutlinedTextField(equipo, { equipo = it }, label = { Text("Equipo") }, modifier = Modifier.fillMaxWidth()) }
-        item { OutlinedTextField(descripcion, { descripcion = it }, label = { Text("Descripción del trabajo") },
-            minLines = 3, modifier = Modifier.fillMaxWidth()) }
+        item { CampoFormulario(datos.local, viewModel::cambiarLocal, "Local", errores.local) }
+        item { CampoFormulario(datos.equipo, viewModel::cambiarEquipo, "Equipo", errores.equipo) }
+        item { CampoFormulario(datos.descripcion, viewModel::cambiarDescripcion,
+            "Descripción del trabajo", errores.descripcion, minLines = 3) }
         item { Text("Tipo de trabajo", style = MaterialTheme.typography.titleMedium) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 TipoOt.entries.filter { it != TipoOt.SIN_ESPECIFICAR }.forEach { tipo ->
-                    FilterChip(selected = tipoSeleccionado == tipo,
-                        onClick = { tipoSeleccionado = tipo }, label = { Text(tipo.etiqueta) })
+                    FilterChip(selected = datos.tipo == tipo,
+                        onClick = { viewModel.cambiarTipo(tipo) }, label = { Text(tipo.etiqueta) })
                 }
             }
         }
+        if (errores.tipo != null) item { ErrorSeleccion(errores.tipo) }
         item { Text("Prioridad", style = MaterialTheme.typography.titleMedium) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 PrioridadOt.entries.filter { it != PrioridadOt.SIN_ESPECIFICAR }.forEach { prioridad ->
-                    FilterChip(selected = prioridadSeleccionada == prioridad,
-                        onClick = { prioridadSeleccionada = prioridad }, label = { Text(prioridad.etiqueta) })
+                    FilterChip(selected = datos.prioridad == prioridad,
+                        onClick = { viewModel.cambiarPrioridad(prioridad) }, label = { Text(prioridad.etiqueta) })
                 }
             }
         }
+        if (errores.prioridad != null) item { ErrorSeleccion(errores.prioridad) }
         item { Text("Fecha y hora programada", style = MaterialTheme.typography.titleMedium) }
         item {
             OutlinedButton(
@@ -313,12 +306,15 @@ private fun CrearOrden(
                         anio = nuevoAnio
                         mes = nuevoMes
                         dia = nuevoDia
-                        fechaElegida = true
+                        viewModel.cambiarFecha(String.format(
+                            Locale.forLanguageTag("es-CL"), "%02d/%02d/%04d", dia, mes + 1, anio,
+                        ))
                     }, anio, mes, dia).show()
                 },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (fechaElegida) "Fecha: $fecha" else "Seleccionar fecha") }
+            ) { Text(if (datos.fecha.isNotBlank()) "Fecha: ${datos.fecha}" else "Seleccionar fecha") }
         }
+        if (errores.fecha != null) item { ErrorSeleccion(errores.fecha) }
         item {
             OutlinedButton(
                 onClick = {
@@ -327,22 +323,23 @@ private fun CrearOrden(
                     TimePickerDialog(context, { _, nuevaHora, nuevoMinuto ->
                         hora = nuevaHora
                         minuto = nuevoMinuto
-                        horaElegida = true
+                        viewModel.cambiarHora(String.format(
+                            Locale.forLanguageTag("es-CL"), "%02d:%02d", hora, minuto,
+                        ))
                     }, hora, minuto, true).show()
                 },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (horaElegida) "Hora: $horario" else "Seleccionar hora") }
+            ) { Text(if (datos.hora.isNotBlank()) "Hora: ${datos.hora}" else "Seleccionar hora") }
         }
-        if (error) item { Text("Completa los campos, tipo, prioridad, fecha y hora.", color = MaterialTheme.colorScheme.error) }
+        if (errores.hora != null) item { ErrorSeleccion(errores.hora) }
+        if (viewModel.errorGuardarCrear) item {
+            Text("No se pudo guardar la OT.", color = MaterialTheme.colorScheme.error)
+        }
         item {
             Button(onClick = {
                 focusManager.clearFocus()
                 keyboardController?.hide()
-                val tipo = tipoSeleccionado
-                val prioridad = prioridadSeleccionada
-                error = if (tipo != null && prioridad != null && fechaElegida && horaElegida) {
-                    !onCrear(local, equipo, descripcion, "$fecha $horario", tipo, prioridad)
-                } else true
+                onCrear()
             }) { Text("Guardar OT") }
         }
     }
@@ -352,17 +349,16 @@ private fun CrearOrden(
 private fun DetalleOrden(
     orden: OrdenTrabajo,
     perfil: Perfil,
-    repository: OrdenesRepository,
+    viewModel: OrdenesViewModel,
     onVolver: () -> Unit,
 ) {
-    var diagnostico by rememberSaveable(orden.id) { mutableStateOf(orden.diagnostico) }
-    var actividad by rememberSaveable(orden.id) { mutableStateOf(orden.actividad) }
-    var materiales by rememberSaveable(orden.id) { mutableStateOf(orden.materiales) }
-    var observacion by rememberSaveable(orden.id) { mutableStateOf("") }
-    var respuesta by rememberSaveable(orden.id) { mutableStateOf("") }
-    var mensaje by rememberSaveable(orden.id) { mutableStateOf("") }
+    val formulario = viewModel.formularioDetalle(orden)
+    val erroresInforme = viewModel.erroresInforme(orden.id, formulario.diagnostico, formulario.actividad)
+    val errorObservacion = viewModel.errorObservacion(orden.id, formulario.observacion)
+    val errorRespuesta = viewModel.errorRespuesta(orden.id, formulario.respuesta)
+    val mensaje = viewModel.mensaje(orden.id)
 
-    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
+    LazyColumn(modifier = Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { TextButton(onClick = onVolver) { Text("← Volver a órdenes") } }
         item {
@@ -399,60 +395,92 @@ private fun DetalleOrden(
             }
         }
         if (perfil == Perfil.PLANIFICADOR && orden.estado == EstadoOt.CREADA) {
-            item { Button(onClick = { repository.asignar(orden.id) }) { Text("Asignar a técnico demo") } }
+            item { Button(onClick = { viewModel.asignar(orden.id) }) { Text("Asignar a técnico demo") } }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.ASIGNADA) {
-            item { Button(onClick = { repository.aceptar(orden.id) }) { Text("Aceptar OT") } }
+            item { Button(onClick = { viewModel.aceptar(orden.id) }) { Text("Aceptar OT") } }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.ACEPTADA) {
-            item { Button(onClick = { repository.iniciarVisita(orden.id) }) { Text("Iniciar visita y registrar check-in") } }
+            item { Button(onClick = { viewModel.iniciarVisita(orden.id) }) { Text("Iniciar visita y registrar check-in") } }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA) {
             item { Text("Informe técnico", style = MaterialTheme.typography.titleLarge) }
-            item { OutlinedTextField(diagnostico, { diagnostico = it }, label = { Text("Diagnóstico") },
-                minLines = 2, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(actividad, { actividad = it }, label = { Text("Actividad realizada") },
-                minLines = 2, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(materiales, { materiales = it }, label = { Text("Materiales usados (opcional)") },
-                modifier = Modifier.fillMaxWidth()) }
+            item { CampoFormulario(formulario.diagnostico, { viewModel.cambiarDiagnostico(orden.id, it) }, "Diagnóstico",
+                erroresInforme.diagnostico, minLines = 2) }
+            item { CampoFormulario(formulario.actividad, { viewModel.cambiarActividad(orden.id, it) }, "Actividad realizada",
+                erroresInforme.actividad, minLines = 2) }
+            item { CampoFormulario(formulario.materiales, { viewModel.cambiarMateriales(orden.id, it) }, "Materiales usados (opcional)") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
-                        mensaje = if (repository.guardarBorrador(orden.id, diagnostico, actividad, materiales))
-                            "Borrador guardado en este dispositivo." else "No se pudo guardar el borrador."
+                        viewModel.guardarBorrador(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
                     }) { Text("Guardar borrador") }
                     Button(onClick = {
-                        mensaje = if (repository.enviarInforme(orden.id, diagnostico, actividad, materiales))
-                            "Informe disponible para revisión en este dispositivo." else
-                            "Completa el diagnóstico y la actividad."
+                        viewModel.finalizarVisita(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
                     }) { Text("Finalizar visita") }
                 }
             }
         }
         if (perfil == Perfil.CLIENTE && orden.estado == EstadoOt.PENDIENTE_CONFORMIDAD) {
             item { Text("Revisar conformidad", style = MaterialTheme.typography.titleLarge) }
-            item { OutlinedTextField(observacion, { observacion = it },
-                label = { Text("Observación si no estás conforme") }, modifier = Modifier.fillMaxWidth()) }
+            item { CampoFormulario(formulario.observacion, { viewModel.cambiarObservacion(orden.id, it) },
+                "Observación si no estás conforme", errorObservacion) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { repository.aprobar(orden.id) }) { Text("Aprobar") }
+                    Button(onClick = { viewModel.aprobar(orden.id) }) { Text("Aprobar") }
                     OutlinedButton(onClick = {
-                        mensaje = if (repository.observar(orden.id, observacion)) "Observación registrada."
-                        else "Escribe una observación antes de enviarla."
+                        viewModel.observar(orden.id, formulario.observacion)
                     }) { Text("Observar") }
                 }
             }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.OBSERVADA) {
             item { Text("Responder observación", style = MaterialTheme.typography.titleLarge) }
-            item { OutlinedTextField(respuesta, { respuesta = it }, label = { Text("Respuesta al cliente") },
-                minLines = 2, modifier = Modifier.fillMaxWidth()) }
+            item { CampoFormulario(formulario.respuesta, { viewModel.cambiarRespuesta(orden.id, it) }, "Respuesta al cliente",
+                errorRespuesta, minLines = 2) }
             item { Button(onClick = {
-                mensaje = if (repository.responderObservacion(orden.id, respuesta))
-                    "Respuesta registrada; el cliente puede revisar nuevamente." else "Escribe una respuesta."
+                viewModel.responderObservacion(orden.id, formulario.respuesta)
             }) { Text("Enviar respuesta") } }
         }
         if (mensaje.isNotBlank()) item { Text(mensaje, color = MaterialTheme.colorScheme.primary) }
+    }
+}
+
+@Composable
+private fun CampoFormulario(
+    valor: String,
+    onCambio: (String) -> Unit,
+    etiqueta: String,
+    error: String? = null,
+    minLines: Int = 1,
+) {
+    val traerAlFrente = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    OutlinedTextField(
+        value = valor,
+        onValueChange = onCambio,
+        label = { Text(etiqueta) },
+        isError = error != null,
+        trailingIcon = if (error != null) {{
+            Icon(painterResource(android.R.drawable.ic_dialog_alert), contentDescription = "Error en $etiqueta",
+                tint = MaterialTheme.colorScheme.error)
+        }} else null,
+        supportingText = error?.let { mensaje -> { Text(mensaje) } },
+        minLines = minLines,
+        modifier = Modifier.fillMaxWidth()
+            .bringIntoViewRequester(traerAlFrente)
+            .onFocusChanged { foco ->
+                if (foco.isFocused) scope.launch { traerAlFrente.bringIntoView() }
+            },
+    )
+}
+
+@Composable
+private fun ErrorSeleccion(mensaje: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(painterResource(android.R.drawable.ic_dialog_alert), contentDescription = null,
+            tint = MaterialTheme.colorScheme.error)
+        Text(mensaje, color = MaterialTheme.colorScheme.error)
     }
 }
 
