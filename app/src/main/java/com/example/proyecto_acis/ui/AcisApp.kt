@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -60,6 +61,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -525,8 +527,9 @@ private fun CampoFormulario(
     val scope = rememberCoroutineScope()
     OutlinedTextField(
         value = valor,
-        onValueChange = onCambio,
+        onValueChange = { onCambio(capitalizarOraciones(it)) },
         label = { Text(etiqueta) },
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         isError = error != null,
         trailingIcon = if (error != null) {{
             Icon(painterResource(android.R.drawable.ic_dialog_alert), contentDescription = "Error en $etiqueta",
@@ -540,6 +543,15 @@ private fun CampoFormulario(
                 if (foco.isFocused) scope.launch { traerAlFrente.bringIntoView() }
             },
     )
+}
+
+private fun capitalizarOraciones(texto: String): String = buildString {
+    var inicio = true
+    texto.forEach { letra ->
+        append(if (inicio && letra.isLetter()) letra.uppercaseChar() else letra)
+        if (letra.isLetter()) inicio = false
+        if (letra == '.' || letra == '!' || letra == '?' || letra == '\n') inicio = true
+    }
 }
 
 @Composable
