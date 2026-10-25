@@ -9,8 +9,8 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 | Indicador | Peso | Estado observado en ACIS | Trabajo prioritario |
 | --- | ---: | --- | --- |
 | IE 2.1.1 Interfaz y navegación | 15 % | Lista, creación y detalle navegables; tema Material 3 básico. | Mantener jerarquía y navegación claras; pulido visual al cierre. |
-| IE 2.1.2 Formularios | 15 % | Creación e informe tienen controles, pero el error de creación es global y falta retroalimentación por campo e íconos. | Reglas y errores por campo para creación, informe, observación y respuesta; mensajes accesibles. |
-| IE 2.2.1 Validación y estado | 10 % | Parte de las reglas está en el repositorio y parte en `AcisApp.kt`. | Centralizar validaciones y mover el estado de presentación a ViewModels. |
+| IE 2.1.2 Formularios | 15 % | Creación, informe, observación y respuesta muestran errores junto a cada campo. | Revisar el resultado en un celular antes de la entrega. |
+| IE 2.2.1 Validación y estado | 10 % | Las reglas están en `ValidadorOt` y el estado de formularios en `OrdenesViewModel`. | Mantener esta separación al agregar funciones. |
 | IE 2.2.2 Animaciones | 10 % | Hay transiciones de navegación, perfil y estado. | Conservarlas y revisar su coherencia al reorganizar pantallas. |
 | IE 2.3.1 Modularidad y persistencia | 15 % | Órdenes persistidas localmente en JSON/SharedPreferences; UI y lógica están muy concentradas. | Separar UI, ViewModel, dominio y datos; evaluar Room y migrar sin perder las OT existentes. |
 | IE 2.3.2 Colaboración | 20 % | Existe GitHub con commits; no se ha verificado tablero compartido ni README. | Crear README, tablero Trello/similar, tareas e historial de contribuciones reales de la pareja. |
@@ -25,9 +25,9 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 5. **Entrega y colaboración:** README completo, tablero compartido, tareas/commits repartidos y revisión del proyecto en dispositivo físico. Preparar el código fuente para GitHub y AVA.
 6. **Pulido final:** consistencia de Material 3, adaptabilidad, accesibilidad y animaciones. La referencia está en `docs/material3-referencia.md`.
 
-## Avance en Desarrollo-2.0
+## Avance en feature/mvvm-validaciones
 
-El primer cambio separa las reglas de validación en `domain/ValidadorOt.kt` y el estado y las acciones en `ui/OrdenesViewModel.kt`. El repositorio entrega las OT mediante `StateFlow`. La pantalla muestra errores por campo al crear una OT y al completar informe, observación y respuesta. Falta integrar íconos, recursos nativos y mejorar la persistencia.
+Las reglas de validación están en `domain/ValidadorOt.kt` y el estado de los formularios y las acciones en `ui/OrdenesViewModel.kt`. El repositorio entrega las OT mediante `StateFlow`. La pantalla muestra errores por campo e íconos al crear una OT y al completar informe, observación y respuesta. Faltan los recursos nativos y mejorar la persistencia.
 
 ## Criterios de cierre antes de entregar
 

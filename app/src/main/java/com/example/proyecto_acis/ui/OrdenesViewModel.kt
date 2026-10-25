@@ -2,6 +2,7 @@ package com.example.proyecto_acis.ui
 
 import android.app.Application
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -31,6 +32,34 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     private var ordenObservacionConError by mutableStateOf<String?>(null)
     private var ordenRespuestaConError by mutableStateOf<String?>(null)
     private var mensajeDetalle by mutableStateOf<Pair<String, String>?>(null)
+    private val formulariosDetalle = mutableStateMapOf<String, FormularioDetalle>()
+
+    data class FormularioDetalle(
+        val diagnostico: String = "",
+        val actividad: String = "",
+        val materiales: String = "",
+        val observacion: String = "",
+        val respuesta: String = "",
+    )
+
+    fun formularioDetalle(orden: OrdenTrabajo): FormularioDetalle =
+        formulariosDetalle.getOrPut(orden.id) {
+            FormularioDetalle(
+                diagnostico = orden.diagnostico,
+                actividad = orden.actividad,
+                materiales = orden.materiales,
+            )
+        }
+
+    fun cambiarDiagnostico(id: String, valor: String) = cambiarDetalle(id) { it.copy(diagnostico = valor) }
+    fun cambiarActividad(id: String, valor: String) = cambiarDetalle(id) { it.copy(actividad = valor) }
+    fun cambiarMateriales(id: String, valor: String) = cambiarDetalle(id) { it.copy(materiales = valor) }
+    fun cambiarObservacion(id: String, valor: String) = cambiarDetalle(id) { it.copy(observacion = valor) }
+    fun cambiarRespuesta(id: String, valor: String) = cambiarDetalle(id) { it.copy(respuesta = valor) }
+
+    private fun cambiarDetalle(id: String, cambio: (FormularioDetalle) -> FormularioDetalle) {
+        formulariosDetalle[id]?.let { formulariosDetalle[id] = cambio(it) }
+    }
 
     val erroresCrear: ErroresCrearOt
         get() = if (mostrarErroresCrear) ValidadorOt.crear(datosCrear) else ErroresCrearOt()

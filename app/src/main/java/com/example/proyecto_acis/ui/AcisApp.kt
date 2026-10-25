@@ -30,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -50,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
@@ -282,7 +284,7 @@ private fun CrearOrden(
                 }
             }
         }
-        if (errores.tipo != null) item { Text(errores.tipo, color = MaterialTheme.colorScheme.error) }
+        if (errores.tipo != null) item { ErrorSeleccion(errores.tipo) }
         item { Text("Prioridad", style = MaterialTheme.typography.titleMedium) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -293,7 +295,7 @@ private fun CrearOrden(
                 }
             }
         }
-        if (errores.prioridad != null) item { Text(errores.prioridad, color = MaterialTheme.colorScheme.error) }
+        if (errores.prioridad != null) item { ErrorSeleccion(errores.prioridad) }
         item { Text("Fecha y hora programada", style = MaterialTheme.typography.titleMedium) }
         item {
             OutlinedButton(
@@ -312,7 +314,7 @@ private fun CrearOrden(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(if (datos.fecha.isNotBlank()) "Fecha: ${datos.fecha}" else "Seleccionar fecha") }
         }
-        if (errores.fecha != null) item { Text(errores.fecha, color = MaterialTheme.colorScheme.error) }
+        if (errores.fecha != null) item { ErrorSeleccion(errores.fecha) }
         item {
             OutlinedButton(
                 onClick = {
@@ -329,7 +331,7 @@ private fun CrearOrden(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(if (datos.hora.isNotBlank()) "Hora: ${datos.hora}" else "Seleccionar hora") }
         }
-        if (errores.hora != null) item { Text(errores.hora, color = MaterialTheme.colorScheme.error) }
+        if (errores.hora != null) item { ErrorSeleccion(errores.hora) }
         if (viewModel.errorGuardarCrear) item {
             Text("No se pudo guardar la OT.", color = MaterialTheme.colorScheme.error)
         }
@@ -350,14 +352,10 @@ private fun DetalleOrden(
     viewModel: OrdenesViewModel,
     onVolver: () -> Unit,
 ) {
-    var diagnostico by rememberSaveable(orden.id) { mutableStateOf(orden.diagnostico) }
-    var actividad by rememberSaveable(orden.id) { mutableStateOf(orden.actividad) }
-    var materiales by rememberSaveable(orden.id) { mutableStateOf(orden.materiales) }
-    var observacion by rememberSaveable(orden.id) { mutableStateOf("") }
-    var respuesta by rememberSaveable(orden.id) { mutableStateOf("") }
-    val erroresInforme = viewModel.erroresInforme(orden.id, diagnostico, actividad)
-    val errorObservacion = viewModel.errorObservacion(orden.id, observacion)
-    val errorRespuesta = viewModel.errorRespuesta(orden.id, respuesta)
+    val formulario = viewModel.formularioDetalle(orden)
+    val erroresInforme = viewModel.erroresInforme(orden.id, formulario.diagnostico, formulario.actividad)
+    val errorObservacion = viewModel.errorObservacion(orden.id, formulario.observacion)
+    val errorRespuesta = viewModel.errorRespuesta(orden.id, formulario.respuesta)
     val mensaje = viewModel.mensaje(orden.id)
 
     LazyColumn(modifier = Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp),
@@ -407,41 +405,41 @@ private fun DetalleOrden(
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA) {
             item { Text("Informe técnico", style = MaterialTheme.typography.titleLarge) }
-            item { CampoFormulario(diagnostico, { diagnostico = it }, "Diagnóstico",
+            item { CampoFormulario(formulario.diagnostico, { viewModel.cambiarDiagnostico(orden.id, it) }, "Diagnóstico",
                 erroresInforme.diagnostico, minLines = 2) }
-            item { CampoFormulario(actividad, { actividad = it }, "Actividad realizada",
+            item { CampoFormulario(formulario.actividad, { viewModel.cambiarActividad(orden.id, it) }, "Actividad realizada",
                 erroresInforme.actividad, minLines = 2) }
-            item { CampoFormulario(materiales, { materiales = it }, "Materiales usados (opcional)") }
+            item { CampoFormulario(formulario.materiales, { viewModel.cambiarMateriales(orden.id, it) }, "Materiales usados (opcional)") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
-                        viewModel.guardarBorrador(orden.id, diagnostico, actividad, materiales)
+                        viewModel.guardarBorrador(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
                     }) { Text("Guardar borrador") }
                     Button(onClick = {
-                        viewModel.finalizarVisita(orden.id, diagnostico, actividad, materiales)
+                        viewModel.finalizarVisita(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
                     }) { Text("Finalizar visita") }
                 }
             }
         }
         if (perfil == Perfil.CLIENTE && orden.estado == EstadoOt.PENDIENTE_CONFORMIDAD) {
             item { Text("Revisar conformidad", style = MaterialTheme.typography.titleLarge) }
-            item { CampoFormulario(observacion, { observacion = it },
+            item { CampoFormulario(formulario.observacion, { viewModel.cambiarObservacion(orden.id, it) },
                 "Observación si no estás conforme", errorObservacion) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { viewModel.aprobar(orden.id) }) { Text("Aprobar") }
                     OutlinedButton(onClick = {
-                        viewModel.observar(orden.id, observacion)
+                        viewModel.observar(orden.id, formulario.observacion)
                     }) { Text("Observar") }
                 }
             }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.OBSERVADA) {
             item { Text("Responder observación", style = MaterialTheme.typography.titleLarge) }
-            item { CampoFormulario(respuesta, { respuesta = it }, "Respuesta al cliente",
+            item { CampoFormulario(formulario.respuesta, { viewModel.cambiarRespuesta(orden.id, it) }, "Respuesta al cliente",
                 errorRespuesta, minLines = 2) }
             item { Button(onClick = {
-                viewModel.responderObservacion(orden.id, respuesta)
+                viewModel.responderObservacion(orden.id, formulario.respuesta)
             }) { Text("Enviar respuesta") } }
         }
         if (mensaje.isNotBlank()) item { Text(mensaje, color = MaterialTheme.colorScheme.primary) }
@@ -463,6 +461,10 @@ private fun CampoFormulario(
         onValueChange = onCambio,
         label = { Text(etiqueta) },
         isError = error != null,
+        trailingIcon = if (error != null) {{
+            Icon(painterResource(android.R.drawable.ic_dialog_alert), contentDescription = "Error en $etiqueta",
+                tint = MaterialTheme.colorScheme.error)
+        }} else null,
         supportingText = error?.let { mensaje -> { Text(mensaje) } },
         minLines = minLines,
         modifier = Modifier.fillMaxWidth()
@@ -471,6 +473,15 @@ private fun CampoFormulario(
                 if (foco.isFocused) scope.launch { traerAlFrente.bringIntoView() }
             },
     )
+}
+
+@Composable
+private fun ErrorSeleccion(mensaje: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(painterResource(android.R.drawable.ic_dialog_alert), contentDescription = null,
+            tint = MaterialTheme.colorScheme.error)
+        Text(mensaje, color = MaterialTheme.colorScheme.error)
+    }
 }
 
 @Composable
