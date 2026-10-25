@@ -36,6 +36,7 @@ class OrdenesRepository(context: Context) {
             fechaProgramada = fecha.trim(),
             tipo = tipo,
             prioridad = prioridad,
+            ultimaActualizacion = siguienteMarca(),
         )
         if (!database.insertar(nueva)) return null
         _ordenes.value = _ordenes.value + nueva
@@ -101,7 +102,7 @@ class OrdenesRepository(context: Context) {
 
     private fun cambiar(id: String, estadoRequerido: EstadoOt, cambio: (OrdenTrabajo) -> OrdenTrabajo): Boolean {
         val actual = _ordenes.value.firstOrNull { it.id == id && it.estado == estadoRequerido } ?: return false
-        val nueva = cambio(actual)
+        val nueva = cambio(actual).copy(ultimaActualizacion = siguienteMarca())
         if (!database.actualizar(nueva, estadoRequerido)) return false
         _ordenes.value = _ordenes.value.map { if (it.id == id) nueva else it }
         return true
@@ -114,6 +115,11 @@ class OrdenesRepository(context: Context) {
         if (anteriores.isNotEmpty()) database.guardarTodas(anteriores)
         return anteriores
     }
+
+    private fun siguienteMarca(): Long = maxOf(
+        System.currentTimeMillis(),
+        (_ordenes.value.maxOfOrNull { it.ultimaActualizacion } ?: 0L) + 1,
+    )
 
     private fun leerOrdenesAnteriores(): List<OrdenTrabajo> = try {
         val json = JSONArray(preferences.getString("ordenes", "[]"))
