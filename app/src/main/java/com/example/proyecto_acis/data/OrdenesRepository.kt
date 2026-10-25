@@ -4,15 +4,14 @@ import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
-import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Almacenamiento local para el primer recorrido. Aún no existe un servicio remoto. */
 class OrdenesRepository(context: Context) {
     private val preferences = context.getSharedPreferences("acis_ordenes_locales", Context.MODE_PRIVATE)
-    private val _ordenes = MutableStateFlow(leerOrdenes())
+    private val database = OrdenesDb(context)
+    private val _ordenes = MutableStateFlow(cargarOrdenes())
     val ordenes = _ordenes.asStateFlow()
 
     fun crear(
@@ -93,36 +92,24 @@ class OrdenesRepository(context: Context) {
     }
 
     private fun guardar(nuevas: List<OrdenTrabajo>): Boolean {
-        val json = JSONArray()
-        nuevas.forEach { orden ->
-            json.put(JSONObject().apply {
-                put("id", orden.id)
-                put("local", orden.local)
-                put("equipo", orden.equipo)
-                put("descripcion", orden.descripcion)
-                put("fechaProgramada", orden.fechaProgramada)
-                put("tipo", orden.tipo.name)
-                put("prioridad", orden.prioridad.name)
-                put("estado", orden.estado.name)
-                put("tecnico", orden.tecnico)
-                put("checkIn", orden.checkIn)
-                put("checkOut", orden.checkOut)
-                put("diagnostico", orden.diagnostico)
-                put("actividad", orden.actividad)
-                put("materiales", orden.materiales)
-                put("observacionCliente", orden.observacionCliente)
-                put("respuestaTecnico", orden.respuestaTecnico)
-                put("fechaConformidad", orden.fechaConformidad)
-            })
-        }
-        val guardado = preferences.edit().putString("ordenes", json.toString()).commit()
+        val guardado = database.guardar(nuevas)
         if (guardado) {
             _ordenes.value = nuevas
         }
         return guardado
     }
 
-    private fun leerOrdenes(): List<OrdenTrabajo> = try {
+    private fun cargarOrdenes(): List<OrdenTrabajo> {
+        val actuales = database.leer()
+        if (actuales.isNotEmpty()) return actuales
+        val anteriores = leerOrdenesAnteriores()
+        if (anteriores.isNotEmpty() && database.guardar(anteriores)) {
+            preferences.edit().remove("ordenes").apply()
+        }
+        return anteriores
+    }
+
+    private fun leerOrdenesAnteriores(): List<OrdenTrabajo> = try {
         val json = JSONArray(preferences.getString("ordenes", "[]"))
         (0 until json.length()).map { index ->
             val item = json.getJSONObject(index)

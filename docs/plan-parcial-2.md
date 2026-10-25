@@ -12,7 +12,7 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 | IE 2.1.2 Formularios | 15 % | Creación, informe, observación y respuesta muestran errores junto a cada campo. | Revisar el resultado en un celular antes de la entrega. |
 | IE 2.2.1 Validación y estado | 10 % | Las reglas están en `ValidadorOt` y el estado de formularios en `OrdenesViewModel`. | Mantener esta separación al agregar funciones. |
 | IE 2.2.2 Animaciones | 10 % | Hay transiciones de navegación, perfil y estado. | Conservarlas y revisar su coherencia al reorganizar pantallas. |
-| IE 2.3.1 Modularidad y persistencia | 15 % | Órdenes persistidas localmente en JSON/SharedPreferences; UI y lógica están muy concentradas. | Separar UI, ViewModel, dominio y datos; evaluar Room y migrar sin perder las OT existentes. |
+| IE 2.3.1 Modularidad y persistencia | 15 % | Órdenes guardadas en SQLite local; los datos anteriores se copian desde SharedPreferences. | Revisar la migración en un celular que ya tenga OT. |
 | IE 2.3.2 Colaboración | 20 % | Existe GitHub con commits; no se ha verificado tablero compartido ni README. | Crear README, tablero Trello/similar, tareas e historial de contribuciones reales de la pareja. |
 | IE 2.4.1 Recursos nativos | 15 % | Hay selectores de fecha/hora; no conviene depender de que se consideren los dos recursos exigidos. | Integrar cámara para evidencia de OT y ubicación al check-in, con permisos y manejo de rechazo. |
 
@@ -20,14 +20,14 @@ El parcial 2 solicita una **interfaz funcional** en Android Studio para el caso 
 
 1. **Base de arquitectura:** separar pantallas/componentes de `AcisApp.kt`, introducir ViewModel para estado y eventos, definir interfaz de repositorio y reglas de dominio. Conservar el recorrido existente.
 2. **Formularios:** centralizar reglas, errores específicos e íconos para creación de OT, informe técnico y conformidad. Validar antes de persistir o cambiar estado.
-3. **Persistencia:** pasar a almacenamiento estructurado local (Room) si el tiempo lo permite, incluyendo una migración de las OT actuales. Mantener el trabajo sin conexión.
+3. **Persistencia:** pasar a almacenamiento estructurado local, incluyendo una migración de las OT actuales. Mantener el trabajo sin conexión.
 4. **Recursos nativos:** cámara para adjuntar foto al informe y ubicación puntual al registrar check-in. Pedir permisos en contexto, explicar su uso y mantener un camino funcional si se rechazan.
 5. **Entrega y colaboración:** README completo, tablero compartido, tareas/commits repartidos y revisión del proyecto en dispositivo físico. Preparar el código fuente para GitHub y AVA.
 6. **Pulido final:** consistencia de Material 3, adaptabilidad, accesibilidad y animaciones. La referencia está en `docs/material3-referencia.md`.
 
 ## Avance en feature/mvvm-validaciones
 
-Las reglas de validación están en `domain/ValidadorOt.kt` y el estado de los formularios y las acciones en `ui/OrdenesViewModel.kt`. El repositorio entrega las OT mediante `StateFlow`. La pantalla muestra errores por campo e íconos al crear una OT y al completar informe, observación y respuesta. Faltan los recursos nativos y mejorar la persistencia.
+Las reglas de validación están en `domain/ValidadorOt.kt` y el estado de los formularios y las acciones en `ui/OrdenesViewModel.kt`. El repositorio entrega las OT mediante `StateFlow`. La pantalla muestra errores por campo e íconos al crear una OT y al completar informe, observación y respuesta. La persistencia se trabaja en `feature/persistencia-local`.
 
 ## Criterios de cierre antes de entregar
 
