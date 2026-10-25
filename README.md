@@ -5,6 +5,11 @@ Aplicación Android en Kotlin para registrar órdenes de trabajo (OT) de manteni
 ## Integrantes
 
 - Matías Guerra
+- Brian Bravo
+
+## Docente
+
+- Alejandro Sepúlveda
 
 ## Funciones disponibles
 
