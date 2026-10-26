@@ -26,6 +26,11 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = Color(0xFFDFE7E9),
     surfaceVariant = Color(0xFF3E4A4D),
     onSurfaceVariant = Color(0xFFBEC9CC),
+    surfaceContainerLow = Color(0xFF1B292D),
+    surfaceContainer = Color(0xFF243338),
+    surfaceContainerHigh = Color(0xFF2D3C41),
+    outline = Color(0xFF8B9A9F),
+    outlineVariant = Color(0xFF46565B),
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -41,12 +46,17 @@ private val LightColorScheme = lightColorScheme(
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFFFDDB3),
     onTertiaryContainer = Color(0xFF512D00),
-    background = Color(0xFFF3F8FA),
+    background = Color(0xFFF5F8F9),
     onBackground = Color(0xFF172124),
     surface = Color.White,
     onSurface = Color(0xFF172124),
     surfaceVariant = Color(0xFFDEE8EB),
     onSurfaceVariant = Color(0xFF455457),
+    surfaceContainerLow = Color(0xFFF0F5F6),
+    surfaceContainer = Color(0xFFE8F0F2),
+    surfaceContainerHigh = Color(0xFFDFE9EC),
+    outline = Color(0xFF71868D),
+    outlineVariant = Color(0xFFC4D4D9),
 )
 
 @Composable
@@ -57,6 +67,7 @@ fun ProyectoACISTheme(
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }
