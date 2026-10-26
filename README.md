@@ -37,7 +37,7 @@ Para recorrer el flujo: crear una OT como Planificador, asignarla, cambiar a Té
 - `app/src/main/java/com/example/proyecto_acis/data`: modelo, base de datos y repositorio de OT.
 - `docs`: requisitos, flujo y planificación del parcial.
 
-Cada función o corrección se desarrolla en una rama propia. Las ramas se conservan después de integrarlas en `main` para consultar los commits y el avance por etapa.
+Las funciones principales se trabajan en ramas que pueden reutilizarse para cambios relacionados. La documentación y los ajustes pequeños se hacen en `main`. Las ramas de las etapas principales se conservan; los commits de las ramas integradas también se pueden consultar desde el historial de `main`.
 
 ## Alcance actual
 
