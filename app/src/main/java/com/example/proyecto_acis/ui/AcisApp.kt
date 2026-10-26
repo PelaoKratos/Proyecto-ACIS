@@ -14,6 +14,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -54,6 +56,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.onFocusChanged
@@ -62,7 +65,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
@@ -104,12 +106,15 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.primaryContainer,
         ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                Text("ACIS", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold,
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("SERVICIOS TÉCNICOS", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary)
+                Text("ACIS", style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text("Primer recorrido · prototipo local", style = MaterialTheme.typography.bodyMedium,
+                Text("Órdenes de trabajo en terreno", style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.horizontalScroll(rememberScrollState())) {
                     Perfil.entries.forEach { opcion ->
@@ -125,7 +130,7 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
                 }
             }
         }
-        HorizontalDivider()
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         NavHost(
             navController = navController,
             startDestination = RutasAcis.ORDENES,
@@ -209,55 +214,91 @@ private fun ListaOrdenes(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    when (perfil) {
-                        Perfil.PLANIFICADOR -> "Órdenes de trabajo"
-                        Perfil.TECNICO -> "Mis órdenes asignadas"
-                        Perfil.CLIENTE -> "Órdenes para revisión"
-                    },
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-                if (perfil == Perfil.PLANIFICADOR) Button(onClick = onCrear) { Text("Crear OT") }
-                Text("Los perfiles comparten datos en este dispositivo. Aún no hay cuentas ni sincronización.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            when (perfil) {
+                                Perfil.PLANIFICADOR -> "Órdenes de trabajo"
+                                Perfil.TECNICO -> "Mis órdenes"
+                                Perfil.CLIENTE -> "Revisión de trabajos"
+                            },
+                            style = MaterialTheme.typography.headlineSmall,
+                        )
+                        Text("Actividad más reciente primero", style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Surface(color = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        shape = MaterialTheme.shapes.medium) {
+                        Text("${ordenes.size}", modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+                if (perfil == Perfil.PLANIFICADOR) {
+                    Button(onClick = onCrear, modifier = Modifier.fillMaxWidth()) { Text("Crear nueva OT") }
+                }
+                Surface(color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = MaterialTheme.shapes.medium) {
+                    Text("Los perfiles comparten datos en este dispositivo. Aún no hay cuentas ni sincronización.",
+                        modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         if (ordenes.isEmpty()) {
             item {
-                Text(
-                    when (perfil) {
-                        Perfil.PLANIFICADOR -> "Todavía no hay órdenes. Crea la primera OT."
-                        Perfil.TECNICO -> "No tienes órdenes asignadas. Cambia a Planificador y asigna una OT."
-                        Perfil.CLIENTE -> "No hay informes pendientes de conformidad."
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = MaterialTheme.shapes.large) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Sin órdenes por ahora", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            when (perfil) {
+                                Perfil.PLANIFICADOR -> "Crea la primera orden para comenzar."
+                                Perfil.TECNICO -> "Cuando te asignen una OT, aparecerá aquí."
+                                Perfil.CLIENTE -> "Los informes pendientes de conformidad aparecerán aquí."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
         items(ordenes, key = { it.id }) { orden ->
             Card(
                 modifier = Modifier.fillMaxWidth().clickable { onSeleccionar(orden.id) },
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                shape = MaterialTheme.shapes.large,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(orden.id, style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary)
-                    AnimatedContent(targetState = orden.estado, label = "estado de OT") { estado ->
-                        EstadoBadge(estado)
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(orden.id, style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary)
+                        AnimatedContent(targetState = orden.estado, label = "estado de OT") { estado ->
+                            EstadoBadge(estado)
+                        }
                     }
-                    Text(orden.local, style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold)
-                    Text(orden.equipo, style = MaterialTheme.typography.bodyMedium)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(orden.local, style = MaterialTheme.typography.titleLarge)
+                        Text(orden.equipo, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text(orden.tipo.etiqueta, style = MaterialTheme.typography.bodySmall)
-                    PrioridadBadge(orden.prioridad)
-                    Text(orden.fechaProgramada, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(orden.fechaProgramada, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Spacer(Modifier.width(8.dp))
+                        PrioridadBadge(orden.prioridad)
+                    }
                 }
             }
         }
@@ -283,11 +324,20 @@ private fun CrearOrden(
     var minuto by rememberSaveable { mutableStateOf(ahora.get(Calendar.MINUTE)) }
 
     LazyColumn(modifier = Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { TextButton(onClick = onVolver) { Text("← Volver") } }
-        item { Text("Nueva orden de trabajo", style = MaterialTheme.typography.headlineSmall) }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Nueva orden de trabajo", style = MaterialTheme.typography.headlineSmall)
+                Text("Completa los datos para programar la visita.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item { TituloSeccion("Ubicación y equipo", "Identifica dónde se realizará el trabajo") }
         item { CampoFormulario(datos.local, viewModel::cambiarLocal, "Local", errores.local) }
         item { CampoFormulario(datos.equipo, viewModel::cambiarEquipo, "Equipo", errores.equipo) }
+        item { TituloSeccion("Trabajo solicitado", "Describe lo que necesita el cliente") }
         item { CampoFormulario(datos.descripcion, viewModel::cambiarDescripcion,
             "Descripción del trabajo", errores.descripcion, minLines = 3) }
         item { Text("Tipo de trabajo", style = MaterialTheme.typography.titleMedium) }
@@ -312,7 +362,7 @@ private fun CrearOrden(
             }
         }
         if (errores.prioridad != null) item { ErrorSeleccion(errores.prioridad) }
-        item { Text("Fecha y hora programada", style = MaterialTheme.typography.titleMedium) }
+        item { TituloSeccion("Programación", "Elige una fecha y hora para la visita") }
         item {
             OutlinedButton(
                 onClick = {
@@ -356,7 +406,7 @@ private fun CrearOrden(
                 focusManager.clearFocus()
                 keyboardController?.hide()
                 onCrear()
-            }) { Text("Guardar OT") }
+            }, modifier = Modifier.fillMaxWidth()) { Text("Guardar OT") }
         }
     }
 }
@@ -408,27 +458,36 @@ private fun DetalleOrden(
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { TextButton(onClick = onVolver) { Text("← Volver a órdenes") } }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(orden.id, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(orden.id, style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
+                Text(orden.local, style = MaterialTheme.typography.headlineMedium)
+                Text(orden.equipo, style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 AnimatedContent(targetState = orden.estado, label = "estado del detalle") { estado ->
                     EstadoBadge(estado)
                 }
             }
         }
+        item { TituloSeccion("Datos de la orden", "Información y avance de la visita") }
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                shape = MaterialTheme.shapes.large,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CampoDetalle("Local", orden.local)
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     CampoDetalle("Equipo", orden.equipo)
                     CampoDetalle("Tipo de trabajo", orden.tipo.etiqueta)
                     PrioridadBadge(orden.prioridad)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     CampoDetalle("Fecha programada", orden.fechaProgramada)
                     CampoDetalle("Trabajo solicitado", orden.descripcion)
                     if (orden.tecnico.isNotBlank()) CampoDetalle("Técnico", orden.tecnico)
+                    if (orden.checkIn.isNotBlank() || orden.checkOut.isNotBlank()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
                     if (orden.checkIn.isNotBlank()) CampoDetalle("Check-in", orden.checkIn)
                     if (orden.ubicacionCheckIn.isNotBlank()) CampoDetalle("Ubicación del check-in", orden.ubicacionCheckIn)
                     if (orden.checkOut.isNotBlank()) CampoDetalle("Check-out", orden.checkOut)
@@ -456,10 +515,14 @@ private fun DetalleOrden(
             }
         }
         if (perfil == Perfil.PLANIFICADOR && orden.estado == EstadoOt.CREADA) {
-            item { Button(onClick = { viewModel.asignar(orden.id) }) { Text("Asignar a técnico demo") } }
+            item { Button(onClick = { viewModel.asignar(orden.id) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Asignar a técnico demo")
+            } }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.ASIGNADA) {
-            item { Button(onClick = { viewModel.aceptar(orden.id) }) { Text("Aceptar OT") } }
+            item { Button(onClick = { viewModel.aceptar(orden.id) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Aceptar OT")
+            } }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.ACEPTADA) {
             item {
@@ -470,14 +533,14 @@ private fun DetalleOrden(
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
                             == PackageManager.PERMISSION_GRANTED) iniciarConUbicacion()
                         else permisoUbicacion.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-                    }, enabled = !buscandoUbicacion) {
+                    }, enabled = !buscandoUbicacion, modifier = Modifier.fillMaxWidth()) {
                         Text(if (buscandoUbicacion) "Buscando ubicación..." else "Iniciar visita y registrar check-in")
                     }
                 }
             }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA) {
-            item { Text("Informe técnico", style = MaterialTheme.typography.titleLarge) }
+            item { TituloSeccion("Informe técnico", "Registra el trabajo realizado en esta visita") }
             item {
                 OutlinedButton(onClick = {
                     var archivoNuevo: File? = null
@@ -502,7 +565,9 @@ private fun DetalleOrden(
                         fotoPendiente = ""
                         errorCamara = "No se pudo abrir la cámara."
                     }
-                }) { Text(if (orden.fotoEvidencia.isBlank()) "Tomar foto de evidencia" else "Cambiar foto de evidencia") }
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (orden.fotoEvidencia.isBlank()) "Tomar foto de evidencia" else "Cambiar foto de evidencia")
+                }
             }
             if (errorCamara.isNotBlank()) item { Text(errorCamara, color = MaterialTheme.colorScheme.error) }
             item { CampoFormulario(formulario.diagnostico, { viewModel.cambiarDiagnostico(orden.id, it) }, "Diagnóstico",
@@ -514,35 +579,50 @@ private fun DetalleOrden(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
                         viewModel.guardarBorrador(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
-                    }) { Text("Guardar borrador") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Guardar borrador") }
                     Button(onClick = {
                         viewModel.finalizarVisita(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
-                    }) { Text("Finalizar visita") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Finalizar visita") }
                 }
             }
         }
         if (perfil == Perfil.CLIENTE && orden.estado == EstadoOt.PENDIENTE_CONFORMIDAD) {
-            item { Text("Revisar conformidad", style = MaterialTheme.typography.titleLarge) }
+            item { TituloSeccion("Revisar conformidad", "Confirma o comenta el trabajo realizado") }
             item { CampoFormulario(formulario.observacion, { viewModel.cambiarObservacion(orden.id, it) },
                 "Observación si no estás conforme", errorObservacion) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { viewModel.aprobar(orden.id) }) { Text("Aprobar") }
+                    Button(onClick = { viewModel.aprobar(orden.id) }, modifier = Modifier.fillMaxWidth()) { Text("Aprobar") }
                     OutlinedButton(onClick = {
                         viewModel.observar(orden.id, formulario.observacion)
-                    }) { Text("Observar") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Observar") }
                 }
             }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.OBSERVADA) {
-            item { Text("Responder observación", style = MaterialTheme.typography.titleLarge) }
+            item { TituloSeccion("Responder observación", "El cliente dejó un comentario sobre la visita") }
             item { CampoFormulario(formulario.respuesta, { viewModel.cambiarRespuesta(orden.id, it) }, "Respuesta al cliente",
                 errorRespuesta, minLines = 2) }
             item { Button(onClick = {
                 viewModel.responderObservacion(orden.id, formulario.respuesta)
-            }) { Text("Enviar respuesta") } }
+            }, modifier = Modifier.fillMaxWidth()) { Text("Enviar respuesta") } }
         }
-        if (mensaje.isNotBlank()) item { Text(mensaje, color = MaterialTheme.colorScheme.primary) }
+        if (mensaje.isNotBlank()) item {
+            Surface(color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.medium) {
+                Text(mensaje, modifier = Modifier.padding(14.dp),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TituloSeccion(titulo: String, descripcion: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(titulo, style = MaterialTheme.typography.titleMedium)
+        Text(descripcion, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
