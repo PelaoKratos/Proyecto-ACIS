@@ -3,6 +3,8 @@ package com.example.proyecto_acis.ui
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
@@ -292,6 +294,7 @@ internal fun DetalleOrden(
     val context = LocalContext.current
     val scopeUbicacion = rememberCoroutineScope()
     var buscandoUbicacion by rememberSaveable(orden.id) { mutableStateOf(false) }
+    var errorMapa by rememberSaveable(orden.id) { mutableStateOf("") }
     val iniciarConUbicacion: () -> Unit = {
         buscandoUbicacion = true
         scopeUbicacion.launch {
@@ -359,7 +362,25 @@ internal fun DetalleOrden(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                     if (orden.checkIn.isNotBlank()) CampoDetalle("Check-in", orden.checkIn)
-                    if (orden.ubicacionCheckIn.isNotBlank()) CampoDetalle("Ubicación del check-in", orden.ubicacionCheckIn)
+                    if (orden.ubicacionCheckIn.isNotBlank()) {
+                        CampoDetalle("Ubicación del check-in", orden.ubicacionCheckIn)
+                        OutlinedButton(onClick = {
+                            val partes = orden.ubicacionCheckIn.split(",")
+                            val latitud = partes.getOrNull(0)?.trim()?.toDoubleOrNull()
+                            val longitud = partes.getOrNull(1)?.trim()?.toDoubleOrNull()
+                            if (partes.size == 2 && latitud != null && longitud != null &&
+                                latitud in -90.0..90.0 && longitud in -180.0..180.0) {
+                                val uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitud,$longitud")
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                                    errorMapa = ""
+                                } catch (_: ActivityNotFoundException) {
+                                    errorMapa = "No hay una aplicación disponible para abrir el mapa."
+                                }
+                            } else errorMapa = "No se pudo abrir esta ubicación."
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Ver ubicación en Google Maps") }
+                        if (errorMapa.isNotBlank()) Text(errorMapa, color = MaterialTheme.colorScheme.error)
+                    }
                     if (orden.checkOut.isNotBlank()) CampoDetalle("Check-out", orden.checkOut)
                     if (orden.diagnostico.isNotBlank()) CampoDetalle("Diagnóstico", orden.diagnostico)
                     if (orden.actividad.isNotBlank()) CampoDetalle("Actividad", orden.actividad)
@@ -397,14 +418,18 @@ internal fun DetalleOrden(
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.ACEPTADA) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Se pedirá ubicación aproximada para el check-in. Puedes continuar si no la permites.",
+                    Text("Puedes registrar la visita con tu ubicación aproximada o continuar sin compartirla.",
                         style = MaterialTheme.typography.bodySmall)
                     Button(onClick = {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
                             == PackageManager.PERMISSION_GRANTED) iniciarConUbicacion()
                         else permisoUbicacion.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                     }, enabled = !buscandoUbicacion, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (buscandoUbicacion) "Buscando ubicación..." else "Iniciar visita y registrar check-in")
+                        Text(if (buscandoUbicacion) "Buscando ubicación..." else "Iniciar con ubicación")
+                    }
+                    OutlinedButton(onClick = { viewModel.iniciarVisita(orden.id, null) },
+                        enabled = !buscandoUbicacion, modifier = Modifier.fillMaxWidth()) {
+                        Text("Iniciar sin ubicación")
                     }
                 }
             }
