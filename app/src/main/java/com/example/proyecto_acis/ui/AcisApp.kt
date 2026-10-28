@@ -9,11 +9,6 @@ import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
@@ -48,7 +43,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,11 +64,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.example.proyecto_acis.data.EstadoOt
 import com.example.proyecto_acis.data.OrdenTrabajo
 import com.example.proyecto_acis.data.Perfil
@@ -87,125 +76,8 @@ import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.launch
 
-private object RutasAcis {
-    const val ORDENES = "ordenes"
-    const val CREAR = "crear"
-    const val DETALLE = "detalle/{ordenId}"
-
-    fun detalle(ordenId: String) = "detalle/$ordenId"
-}
-
 @Composable
-fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
-    val navController = rememberNavController()
-    val ordenes by viewModel.ordenes.collectAsState()
-    val perfil = viewModel.perfil
-
-    Column(modifier = modifier.fillMaxSize()) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.primaryContainer,
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("SERVICIOS TÉCNICOS", style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary)
-                Text("ACIS", style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text("Órdenes de trabajo en terreno", style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                    Perfil.entries.forEach { opcion ->
-                        FilterChip(
-                            selected = perfil == opcion,
-                            onClick = {
-                                viewModel.seleccionarPerfil(opcion)
-                                navController.popBackStack(RutasAcis.ORDENES, inclusive = false)
-                            },
-                            label = { Text(opcion.etiqueta) },
-                        )
-                    }
-                }
-            }
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        NavHost(
-            navController = navController,
-            startDestination = RutasAcis.ORDENES,
-            modifier = Modifier.weight(1f),
-            enterTransition = {
-                fadeIn(tween(420)) + slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(420),
-                )
-            },
-            exitTransition = {
-                fadeOut(tween(350)) + slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(350),
-                )
-            },
-            popEnterTransition = {
-                fadeIn(tween(420)) + slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.End,
-                    animationSpec = tween(420),
-                )
-            },
-            popExitTransition = {
-                fadeOut(tween(350)) + slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.End,
-                    animationSpec = tween(350),
-                )
-            },
-        ) {
-            composable(RutasAcis.ORDENES) {
-                Crossfade(targetState = perfil, animationSpec = tween(420), label = "cambio de perfil") { perfilVisible ->
-                    ListaOrdenes(
-                        ordenes = viewModel.ordenesParaPerfil(ordenes, perfilVisible),
-                        perfil = perfilVisible,
-                        onCrear = { navController.navigate(RutasAcis.CREAR) },
-                        onSeleccionar = { navController.navigate(RutasAcis.detalle(it)) },
-                    )
-                }
-            }
-            composable(RutasAcis.CREAR) {
-                CrearOrden(
-                    viewModel = viewModel,
-                    onVolver = { navController.popBackStack() },
-                    onCrear = {
-                        val id = viewModel.crear()
-                        if (id != null) {
-                            navController.navigate(RutasAcis.detalle(id)) {
-                                popUpTo(RutasAcis.ORDENES) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        }
-                    },
-                )
-            }
-            composable(
-                route = RutasAcis.DETALLE,
-                arguments = listOf(navArgument("ordenId") { type = NavType.StringType }),
-            ) { entrada ->
-                val ordenId = entrada.arguments?.getString("ordenId")
-                val orden = ordenes.firstOrNull { it.id == ordenId }
-                if (orden != null) {
-                    DetalleOrden(
-                        orden = orden,
-                        perfil = perfil,
-                        viewModel = viewModel,
-                        onVolver = { navController.popBackStack() },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ListaOrdenes(
+internal fun ListaOrdenes(
     ordenes: List<OrdenTrabajo>,
     perfil: Perfil,
     onCrear: () -> Unit,
@@ -306,7 +178,7 @@ private fun ListaOrdenes(
 }
 
 @Composable
-private fun CrearOrden(
+internal fun CrearOrden(
     viewModel: OrdenesViewModel,
     onVolver: () -> Unit,
     onCrear: () -> Unit,
@@ -325,7 +197,6 @@ private fun CrearOrden(
 
     LazyColumn(modifier = Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { TextButton(onClick = onVolver) { Text("← Volver") } }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Nueva orden de trabajo", style = MaterialTheme.typography.headlineSmall)
@@ -412,7 +283,7 @@ private fun CrearOrden(
 }
 
 @Composable
-private fun DetalleOrden(
+internal fun DetalleOrden(
     orden: OrdenTrabajo,
     perfil: Perfil,
     viewModel: OrdenesViewModel,
@@ -456,7 +327,6 @@ private fun DetalleOrden(
 
     LazyColumn(modifier = Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { TextButton(onClick = onVolver) { Text("← Volver a órdenes") } }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(orden.id, style = MaterialTheme.typography.labelLarge,
