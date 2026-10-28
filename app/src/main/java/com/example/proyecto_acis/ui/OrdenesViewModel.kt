@@ -75,7 +75,14 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
 
     fun mensaje(ordenId: String): String = mensajeDetalle?.takeIf { it.first == ordenId }?.second.orEmpty()
 
-    fun seleccionarPerfil(nuevo: Perfil) { perfil = nuevo }
+    fun seleccionarPerfil(nuevo: Perfil) {
+        perfil = nuevo
+        formulariosDetalle.clear()
+        mensajeDetalle = null
+        ordenInformeConErrores = null
+        ordenObservacionConError = null
+        ordenRespuestaConError = null
+    }
     fun cambiarLocal(valor: String) { datosCrear = datosCrear.copy(local = valor) }
     fun cambiarEquipo(valor: String) { datosCrear = datosCrear.copy(equipo = valor) }
     fun cambiarDescripcion(valor: String) { datosCrear = datosCrear.copy(descripcion = valor) }
@@ -85,6 +92,7 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     fun cambiarHora(valor: String) { datosCrear = datosCrear.copy(hora = valor) }
 
     fun crear(): String? {
+        if (perfil != Perfil.PLANIFICADOR) return null
         mostrarErroresCrear = true
         errorGuardarCrear = false
         val datos = datosCrear
@@ -118,9 +126,13 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
                 .thenByDescending { it.id.removePrefix("OT-").toIntOrNull() ?: 0 },
         )
 
-    fun asignar(id: String) = repository.asignar(id)
-    fun aceptar(id: String) = repository.aceptar(id)
+    private fun puedeActuar(id: String, requerido: Perfil): Boolean =
+        perfil == requerido && ordenesParaPerfil(ordenes.value, perfil).any { it.id == id }
+
+    fun asignar(id: String): Boolean = puedeActuar(id, Perfil.PLANIFICADOR) && repository.asignar(id)
+    fun aceptar(id: String): Boolean = puedeActuar(id, Perfil.TECNICO) && repository.aceptar(id)
     fun iniciarVisita(id: String, ubicacion: String?) {
+        if (!puedeActuar(id, Perfil.TECNICO)) return
         val guardado = repository.iniciarVisita(id, ubicacion)
         mensajeDetalle = id to when {
             !guardado -> "No se pudo iniciar la visita."
@@ -128,15 +140,17 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
             else -> "Check-in registrado con ubicación."
         }
     }
-    fun aprobar(id: String) = repository.aprobar(id)
+    fun aprobar(id: String): Boolean = puedeActuar(id, Perfil.CLIENTE) && repository.aprobar(id)
 
     fun guardarBorrador(id: String, diagnostico: String, actividad: String, materiales: String) {
+        if (!puedeActuar(id, Perfil.TECNICO)) return
         val guardado = repository.guardarBorrador(id, diagnostico, actividad, materiales)
         mensajeDetalle = id to if (guardado) "Borrador guardado en este dispositivo."
         else "No se pudo guardar el borrador."
     }
 
     fun guardarFoto(id: String, nombre: String): Boolean {
+        if (!puedeActuar(id, Perfil.TECNICO)) return false
         val guardado = repository.guardarFoto(id, nombre)
         mensajeDetalle = id to if (guardado) "Foto guardada en esta OT."
         else "No se pudo guardar la foto."
@@ -144,6 +158,7 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun finalizarVisita(id: String, diagnostico: String, actividad: String, materiales: String) {
+        if (!puedeActuar(id, Perfil.TECNICO)) return
         ordenInformeConErrores = id
         if (ValidadorOt.informe(diagnostico, actividad).hayErrores) {
             mensajeDetalle = null
@@ -156,6 +171,7 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun observar(id: String, observacion: String) {
+        if (!puedeActuar(id, Perfil.CLIENTE)) return
         ordenObservacionConError = id
         if (ValidadorOt.observacion(observacion) != null) {
             mensajeDetalle = null
@@ -167,6 +183,7 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun responderObservacion(id: String, respuesta: String) {
+        if (!puedeActuar(id, Perfil.TECNICO)) return
         ordenRespuestaConError = id
         if (ValidadorOt.respuesta(respuesta) != null) {
             mensajeDetalle = null
