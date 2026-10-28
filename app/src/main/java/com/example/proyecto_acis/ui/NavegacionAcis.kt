@@ -3,6 +3,7 @@ package com.example.proyecto_acis.ui
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -117,6 +118,9 @@ private fun SeleccionPerfil(onSeleccionar: (Perfil) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
+            Image(painter = painterResource(R.drawable.ic_acis_logo), contentDescription = "Logo de ACIS",
+                modifier = Modifier.size(76.dp))
+            Spacer(Modifier.height(12.dp))
             Text("ACIS", style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary)
             Text("Selecciona tu perfil", style = MaterialTheme.typography.headlineSmall)
