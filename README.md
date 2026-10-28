@@ -19,7 +19,7 @@ Aplicación Android en Kotlin para registrar órdenes de trabajo (OT) de manteni
 - Las OT se ordenan por su actividad más reciente y permanecen guardadas en el dispositivo mediante SQLite.
 - El check-in solicita ubicación aproximada. Si no se concede el permiso o no se obtiene una posición, la visita puede continuar sin coordenadas.
 
-Los tres perfiles se seleccionan desde la parte superior de la app. Son perfiles de demostración en un mismo dispositivo; todavía no hay cuentas ni sincronización con un servidor.
+La app comienza con una selección de perfil. Cada perfil tiene un inicio con sus funciones y registros disponibles. La barra inferior permite ir a Inicio o Registros; la barra superior permite retroceder o cambiar de perfil. El ViewModel comprueba el rol antes de ejecutar acciones sobre las OT. Son perfiles de demostración en un mismo dispositivo; todavía no hay cuentas ni sincronización con un servidor.
 
 ## Cómo ejecutar
 
