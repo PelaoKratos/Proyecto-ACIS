@@ -111,6 +111,12 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         }
     }
 
+    fun eliminar(id: String, estado: EstadoOt): Boolean = try {
+        writableDatabase.delete("ordenes", "id = ? AND estado = ?", arrayOf(id, estado.name)) == 1
+    } catch (_: Exception) {
+        false
+    }
+
     private fun valores(orden: OrdenTrabajo) = ContentValues().apply {
         put("id", orden.id)
         put("local", orden.local)

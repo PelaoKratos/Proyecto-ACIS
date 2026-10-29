@@ -91,6 +91,54 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     fun cambiarFecha(valor: String) { datosCrear = datosCrear.copy(fecha = valor) }
     fun cambiarHora(valor: String) { datosCrear = datosCrear.copy(hora = valor) }
 
+    fun prepararCreacion() {
+        datosCrear = DatosCrearOt()
+        mostrarErroresCrear = false
+        errorGuardarCrear = false
+    }
+
+    fun prepararEdicion(id: String): Boolean {
+        if (!puedeActuar(id, Perfil.PLANIFICADOR)) return false
+        val orden = ordenes.value.firstOrNull { it.id == id && it.estado in setOf(EstadoOt.CREADA, EstadoOt.ASIGNADA, EstadoOt.ACEPTADA) } ?: return false
+        val partes = orden.fechaProgramada.split(" ")
+        datosCrear = DatosCrearOt(orden.local, orden.equipo, orden.descripcion, orden.tipo, orden.prioridad,
+            partes.getOrElse(0) { "" }, partes.getOrElse(1) { "" })
+        mostrarErroresCrear = false
+        errorGuardarCrear = false
+        return true
+    }
+
+    fun actualizarDatos(id: String, datos: DatosCrearOt): Boolean =
+        puedeActuar(id, Perfil.PLANIFICADOR) && repository.actualizarDatos(id, datos)
+
+    fun guardarEdicion(id: String): Boolean {
+        mostrarErroresCrear = true
+        errorGuardarCrear = false
+        if (ValidadorOt.crear(datosCrear).hayErrores) return false
+        val guardado = actualizarDatos(id, datosCrear)
+        errorGuardarCrear = !guardado
+        if (guardado) prepararCreacion()
+        return guardado
+    }
+
+    fun eliminar(id: String): Boolean = puedeActuar(id, Perfil.PLANIFICADOR) && repository.eliminar(id)
+
+    fun rechazar(id: String): Boolean = puedeActuar(id, Perfil.TECNICO) && repository.rechazar(id)
+
+    fun postergar(id: String, fecha: String): Boolean {
+        if (!puedeActuar(id, Perfil.TECNICO)) return false
+        val guardado = repository.postergar(id, fecha)
+        mensajeDetalle = id to if (guardado) "Fecha de visita actualizada." else "No se pudo cambiar la fecha de visita."
+        return guardado
+    }
+
+    fun guardarUbicacion(id: String, ubicacion: String): Boolean {
+        if (!puedeActuar(id, Perfil.TECNICO)) return false
+        val guardado = repository.guardarUbicacion(id, ubicacion)
+        mensajeDetalle = id to if (guardado) "Ubicación guardada." else "No se pudo guardar la ubicación."
+        return guardado
+    }
+
     fun crear(): String? {
         if (perfil != Perfil.PLANIFICADOR) return null
         mostrarErroresCrear = true

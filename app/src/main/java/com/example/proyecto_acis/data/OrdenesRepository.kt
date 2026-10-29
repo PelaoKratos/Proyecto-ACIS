@@ -8,6 +8,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.proyecto_acis.domain.DatosCrearOt
+import com.example.proyecto_acis.domain.ValidadorOt
 
 class OrdenesRepository(context: Context) {
     private val preferences = context.getSharedPreferences("acis_ordenes_locales", Context.MODE_PRIVATE)
@@ -26,7 +28,8 @@ class OrdenesRepository(context: Context) {
     ): String? {
         if (listOf(local, equipo, descripcion, fecha).any { it.isBlank() }) return null
         if (tipo == TipoOt.SIN_ESPECIFICAR || prioridad == PrioridadOt.SIN_ESPECIFICAR) return null
-        val siguiente = (_ordenes.value.mapNotNull { it.id.removePrefix("OT-").toIntOrNull() }.maxOrNull() ?: 1000) + 1
+        val ultimo = _ordenes.value.mapNotNull { it.id.removePrefix("OT-").toIntOrNull() }.maxOrNull() ?: 1000
+        val siguiente = maxOf(ultimo, preferences.getInt("ultimoNumeroOt", 1000)) + 1
         val id = "OT-$siguiente"
         val nueva = OrdenTrabajo(
             id = id,
@@ -39,6 +42,7 @@ class OrdenesRepository(context: Context) {
             ultimaActualizacion = siguienteMarca(),
         )
         if (!database.insertar(nueva)) return null
+        preferences.edit().putInt("ultimoNumeroOt", siguiente).apply()
         _ordenes.value = _ordenes.value + nueva
         return id
     }
@@ -51,8 +55,40 @@ class OrdenesRepository(context: Context) {
         it.copy(estado = EstadoOt.ACEPTADA)
     }
 
+    fun rechazar(id: String): Boolean = cambiar(id, EstadoOt.ASIGNADA) {
+        it.copy(estado = EstadoOt.CREADA, tecnico = "")
+    }
+
+    fun postergar(id: String, fecha: String): Boolean {
+        if (!fechaValida(fecha)) return false
+        return cambiar(id, EstadoOt.ASIGNADA) { it.copy(fechaProgramada = fecha.trim()) }
+    }
+
+    fun actualizarDatos(id: String, datos: DatosCrearOt): Boolean {
+        if (ValidadorOt.crear(datos).hayErrores || !fechaValida("${datos.fecha} ${datos.hora}")) return false
+        val actual = _ordenes.value.firstOrNull { it.id == id && it.estado in estadosEditables } ?: return false
+        return cambiar(id, actual.estado) {
+            it.copy(local = datos.local.trim(), equipo = datos.equipo.trim(), descripcion = datos.descripcion.trim(),
+                tipo = datos.tipo!!, prioridad = datos.prioridad!!, fechaProgramada = "${datos.fecha} ${datos.hora}")
+        }
+    }
+
+    fun eliminar(id: String): Boolean {
+        val actual = _ordenes.value.firstOrNull { it.id == id && it.estado in estadosEditables } ?: return false
+        if (!database.eliminar(id, actual.estado)) return false
+        _ordenes.value = _ordenes.value.filterNot { it.id == id }
+        if (actual.fotoEvidencia.isNotBlank()) File(fotos, actual.fotoEvidencia).delete()
+        return true
+    }
+
     fun iniciarVisita(id: String, ubicacion: String?): Boolean = cambiar(id, EstadoOt.ACEPTADA) {
-        it.copy(estado = EstadoOt.EN_VISITA, checkIn = ahora(), ubicacionCheckIn = ubicacion.orEmpty())
+        it.copy(estado = EstadoOt.EN_VISITA, checkIn = ahora(), ubicacionCheckIn = ubicacion ?: it.ubicacionCheckIn)
+    }
+
+    fun guardarUbicacion(id: String, ubicacion: String): Boolean {
+        if (ubicacion.isBlank()) return false
+        val actual = _ordenes.value.firstOrNull { it.id == id && it.estado in setOf(EstadoOt.ACEPTADA, EstadoOt.EN_VISITA) } ?: return false
+        return cambiar(id, actual.estado) { it.copy(ubicacionCheckIn = ubicacion) }
     }
 
     fun guardarBorrador(id: String, diagnostico: String, actividad: String, materiales: String): Boolean =
@@ -110,9 +146,15 @@ class OrdenesRepository(context: Context) {
 
     private fun cargarOrdenes(): List<OrdenTrabajo> {
         val actuales = database.leer()
-        if (actuales.isNotEmpty()) return actuales
+        if (actuales.isNotEmpty()) {
+            preferences.edit().putBoolean("migracionSQLiteCompleta", true).apply()
+            return actuales
+        }
+        if (preferences.getBoolean("migracionSQLiteCompleta", false)) return emptyList()
         val anteriores = leerOrdenesAnteriores()
-        if (anteriores.isNotEmpty()) database.guardarTodas(anteriores)
+        if (anteriores.isEmpty() || database.guardarTodas(anteriores)) {
+            preferences.edit().putBoolean("migracionSQLiteCompleta", true).apply()
+        }
         return anteriores
     }
 
@@ -152,6 +194,12 @@ class OrdenesRepository(context: Context) {
     }
 
     companion object {
+        private val estadosEditables = setOf(EstadoOt.CREADA, EstadoOt.ASIGNADA, EstadoOt.ACEPTADA)
+        private fun fechaValida(texto: String): Boolean = try {
+            val formato = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-CL")).apply { isLenient = false }
+            val fecha = formato.parse(texto)
+            fecha != null && formato.format(fecha) == texto
+        } catch (_: Exception) { false }
         const val TECNICO_DEMO = "Técnico demo"
 
         private fun ahora(): String = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-CL"))

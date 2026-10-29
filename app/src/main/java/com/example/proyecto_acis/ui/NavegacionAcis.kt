@@ -22,6 +22,7 @@ private object RutasAcis {
     const val INICIO = "inicio"
     const val REGISTROS = "registros"
     const val CREAR = "crear"
+    const val EDITAR = "editar/{ordenId}"
     const val DETALLE = "detalle/{ordenId}"
     fun detalle(id: String) = "detalle/$id"
 }
@@ -54,11 +55,6 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
                         Text("ACIS", style = MaterialTheme.typography.titleLarge)
                         Text(perfil.etiqueta, style = MaterialTheme.typography.labelMedium)
                     }
-                    TextButton(onClick = {
-                        nav.navigate(RutasAcis.ACCESO) {
-                            popUpTo(RutasAcis.ACCESO) { inclusive = true }
-                        }
-                    }) { Text("Cambiar perfil") }
                 }
             }
         }
@@ -72,10 +68,11 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
             }
             composable(RutasAcis.INICIO) {
                 InicioPerfil(perfil, visibles, onRegistros = { irPrincipal(RutasAcis.REGISTROS) },
-                    onCrear = { nav.navigate(RutasAcis.CREAR) })
+                    onCrear = { viewModel.prepararCreacion(); nav.navigate(RutasAcis.CREAR) },
+                    onSeleccionar = { nav.navigate(RutasAcis.detalle(it)) })
             }
             composable(RutasAcis.REGISTROS) {
-                ListaOrdenes(visibles, perfil, onCrear = { nav.navigate(RutasAcis.CREAR) },
+                ListaOrdenes(visibles, perfil, onCrear = { viewModel.prepararCreacion(); nav.navigate(RutasAcis.CREAR) },
                     onSeleccionar = { nav.navigate(RutasAcis.detalle(it)) })
             }
             composable(RutasAcis.CREAR) {
@@ -90,8 +87,14 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
             }
             composable(RutasAcis.DETALLE) { destino ->
                 val orden = visibles.firstOrNull { it.id == destino.arguments?.getString("ordenId") }
-                if (orden != null) DetalleOrden(orden, perfil, viewModel, onVolver = { nav.popBackStack() })
+                if (orden != null) DetalleOrden(orden, perfil, viewModel, onVolver = { nav.popBackStack() },
+                    onEditar = { if (viewModel.prepararEdicion(orden.id)) nav.navigate("editar/${orden.id}") })
                 else Text("La orden no está disponible para este perfil.", Modifier.padding(20.dp))
+            }
+            composable(RutasAcis.EDITAR) { destino ->
+                val id = destino.arguments?.getString("ordenId").orEmpty()
+                CrearOrden(viewModel, onVolver = { nav.popBackStack() },
+                    onCrear = { if (viewModel.guardarEdicion(id)) nav.popBackStack() }, editando = true)
             }
         }
         if (!enAcceso) {
@@ -102,6 +105,10 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
                 NavigationBarItem(selected = ruta != RutasAcis.INICIO,
                     onClick = { irPrincipal(RutasAcis.REGISTROS) },
                     icon = { Icon(painterResource(R.drawable.ic_acis_records), null) }, label = { Text("Registros") })
+                NavigationBarItem(selected = false, onClick = {
+                    nav.navigate(RutasAcis.ACCESO) { popUpTo(RutasAcis.ACCESO) { inclusive = true } }
+                }, icon = { Icon(painterResource(R.drawable.ic_acis_profile), contentDescription = null) },
+                    label = { Text("Cambiar perfil") }, alwaysShowLabel = true)
             }
         }
     }
@@ -128,10 +135,23 @@ private fun SeleccionPerfil(onSeleccionar: (Perfil) -> Unit) {
         }
         Perfil.entries.forEach { perfil ->
             item {
-                Card(onClick = { onSeleccionar(perfil) }, modifier = Modifier.fillMaxWidth()) {
+                val colores = MaterialTheme.colorScheme
+                val fondo = when (perfil) {
+                    Perfil.PLANIFICADOR -> colores.primaryContainer
+                    Perfil.TECNICO -> colores.secondaryContainer
+                    Perfil.CLIENTE -> colores.tertiaryContainer
+                }
+                val texto = when (perfil) {
+                    Perfil.PLANIFICADOR -> colores.onPrimaryContainer
+                    Perfil.TECNICO -> colores.onSecondaryContainer
+                    Perfil.CLIENTE -> colores.onTertiaryContainer
+                }
+                Card(onClick = { onSeleccionar(perfil) }, modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = fondo, contentColor = texto)) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(perfil.etiqueta, style = MaterialTheme.typography.titleLarge)
                         Text(descripcionPerfil(perfil), style = MaterialTheme.typography.bodyMedium)
+                        Text("Entrar como ${perfil.etiqueta.lowercase()} →", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -140,28 +160,55 @@ private fun SeleccionPerfil(onSeleccionar: (Perfil) -> Unit) {
 }
 
 @Composable
-private fun InicioPerfil(perfil: Perfil, ordenes: List<OrdenTrabajo>, onRegistros: () -> Unit, onCrear: () -> Unit) {
+private fun InicioPerfil(perfil: Perfil, ordenes: List<OrdenTrabajo>, onRegistros: () -> Unit,
+    onCrear: () -> Unit, onSeleccionar: (String) -> Unit) {
     val pendientes = ordenes.count { it.estado != EstadoOt.CERRADA }
+    val porRevisar = ordenes.filter { it.estado == EstadoOt.PENDIENTE_CONFORMIDAD }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item {
-            Text("Inicio", style = MaterialTheme.typography.headlineMedium)
-            Text(descripcionPerfil(perfil), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (perfil == Perfil.CLIENTE) "Tus servicios" else "Inicio",
+                style = MaterialTheme.typography.headlineMedium)
+            Text(if (perfil == Perfil.CLIENTE) "Consulta el avance y revisa los trabajos realizados."
+                else descripcionPerfil(perfil), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("$pendientes", style = MaterialTheme.typography.headlineLarge)
-                    Text("Órdenes sin cerrar", style = MaterialTheme.typography.titleMedium)
-                    Text("${ordenes.size} registros disponibles para este perfil")
+                    Text(if (perfil == Perfil.CLIENTE) "${porRevisar.size}" else "$pendientes",
+                        style = MaterialTheme.typography.headlineLarge)
+                    Text(if (perfil == Perfil.CLIENTE) "Trabajos por revisar" else "Órdenes sin cerrar",
+                        style = MaterialTheme.typography.titleMedium)
+                    Text(if (perfil == Perfil.CLIENTE && porRevisar.isEmpty()) "No tienes trabajos pendientes de revisión."
+                        else "${ordenes.size} registros disponibles")
                 }
             }
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (perfil == Perfil.PLANIFICADOR) Button(onCrear, Modifier.fillMaxWidth()) { Text("Crear nueva OT") }
-                OutlinedButton(onRegistros, Modifier.fillMaxWidth()) { Text("Ver registros") }
+                if (perfil == Perfil.CLIENTE && porRevisar.isNotEmpty()) {
+                    Button(onClick = { onSeleccionar(porRevisar.first().id) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Revisar trabajo pendiente")
+                    }
+                    OutlinedButton(onRegistros, Modifier.fillMaxWidth()) { Text("Ver todos mis trabajos") }
+                } else if (perfil == Perfil.PLANIFICADOR) {
+                    OutlinedButton(onRegistros, Modifier.fillMaxWidth()) { Text("Ver registros") }
+                } else {
+                    Button(onRegistros, Modifier.fillMaxWidth()) {
+                        Text(if (perfil == Perfil.CLIENTE) "Ver mis trabajos" else "Ver mis órdenes")
+                    }
+                }
+            }
+        }
+        if (perfil == Perfil.CLIENTE && porRevisar.isNotEmpty()) item {
+            Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.large) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Último trabajo por revisar", style = MaterialTheme.typography.titleMedium)
+                    Text("${porRevisar.first().local} · ${porRevisar.first().equipo}")
+                    Text("Abre el trabajo para aprobarlo o dejar un comentario.", style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
     }
