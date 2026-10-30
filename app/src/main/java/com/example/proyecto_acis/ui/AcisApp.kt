@@ -7,6 +7,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.example.proyecto_acis.domain.ReglasClima
+import com.example.proyecto_acis.ui.components.WeatherBanner
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -118,7 +121,7 @@ internal fun ListaOrdenes(
                             },
                             style = MaterialTheme.typography.headlineSmall,
                         )
-                        Text("Actividad más reciente primero", style = MaterialTheme.typography.bodyMedium,
+                        Text(if (perfil == Perfil.TECNICO) "Órdenes más nuevas primero" else "Actividad más reciente primero", style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Surface(color = MaterialTheme.colorScheme.secondaryContainer,
@@ -195,6 +198,7 @@ internal fun ListaOrdenes(
 @Composable
 internal fun CrearOrden(
     viewModel: OrdenesViewModel,
+    climaViewModel: ClimaViewModel,
     onVolver: () -> Unit,
     onCrear: () -> Unit,
     editando: Boolean = false,
@@ -301,6 +305,11 @@ internal fun CrearOrden(
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        if (paso == 3) item {
+            WeatherBanner(
+                ReglasClima.formulario(datos.local, datos.equipo,
+                    "${datos.fecha} ${datos.hora}", catastro), climaViewModel)
+        }
         if (viewModel.errorGuardarCrear) item {
             Text("No se pudo guardar la OT.", color = MaterialTheme.colorScheme.error)
         }
@@ -335,6 +344,7 @@ internal fun DetalleOrden(
     orden: OrdenTrabajo,
     perfil: Perfil,
     viewModel: OrdenesViewModel,
+    climaViewModel: ClimaViewModel,
     onVolver: () -> Unit,
     onEditar: () -> Unit = {},
     asignacionInicial: Boolean = false,
@@ -582,6 +592,7 @@ internal fun DetalleOrden(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text(orden.tipo.etiqueta, style = MaterialTheme.typography.bodyMedium)
                     CampoDetalle("Fecha programada", orden.fechaProgramada)
+                    if (perfil != Perfil.CLIENTE) WeatherBanner(ReglasClima.orden(orden, catastro), climaViewModel)
                     if (perfil != Perfil.CLIENTE) {
                         Text(com.example.proyecto_acis.domain.DestinoMapa.descripcion(orden, catastro),
                             style = MaterialTheme.typography.bodySmall)

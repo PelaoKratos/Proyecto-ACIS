@@ -115,3 +115,20 @@ AcisApplication comparte una sola instancia del repositorio y la sesión demo. O
 
 
 Verificación del bloque de clientes y locales (30/10/2026): 22 pruebas unitarias y 10 pruebas Android sin fallos. Se abrió la app en el emulador y se comprobó navegación a Clientes y Locales, error por cliente vacío, creación de cliente con confirmación y errores por cliente/nombre al guardar un local incompleto. La captura de ubicación y el salto a Maps requieren revisión manual en el teléfono. La paleta oscura y el acento lima se mantienen.
+
+
+## Fase 3.1: clima para equipos exteriores
+
+Rama de trabajo: feature/clima. Se conserva SQLite y el tema oscuro con acento lima. SLA y sincronización simulada siguen pendientes.
+
+El pronóstico se consulta en [Open-Meteo](https://open-meteo.com/en/docs), sin clave y mediante HTTPS. Se envían únicamente las coordenadas registradas del local, nunca la ubicación de llegada del técnico, fotos o nombres de clientes. No se solicita un permiso de ubicación adicional: si el local no tiene coordenadas, se explica cómo agregarlas y se permite continuar.
+
+Las alertas solo se muestran para equipos marcados como exteriores. Se considera lluvia desde 60% o viento desde 40 km/h; estos límites están en domain/Clima.kt. Son supuestos para el ejercicio y no impiden crear ni realizar una OT.
+
+El inicio del planificador presenta hasta tres próximas órdenes exteriores. El paso 3 de creación/edición y la tarjeta de jornada del técnico muestran el pronóstico para la hora programada. Se utilizan horas Unix en UTC y se presentan los horarios según el teléfono, igual que las fechas de las OT. La visita de las 11:30 usa la franja de las 11:00. No se sustituye una fecha sin datos por el clima actual.
+
+La API entrega hasta 16 días. Si la fecha está fuera del pronóstico o faltan valores, se indica que no hay datos; no se muestra un estado de buen clima inventado. El proveedor y la fecha/hora de consulta aparecen en el aviso. La consulta no bloquea el botón para guardar la orden.
+
+La caché se guarda por coordenadas en preferencias locales, sin cambios al esquema SQLite. Se reutiliza durante 30 minutos; Actualizar clima fuerza otra consulta. Si falla la red, se usa un respaldo de hasta 48 horas, identificado como última consulta sin actualizar. Pasado ese plazo se informa que no hay un pronóstico disponible. Cambiar las coordenadas evita reutilizar el pronóstico de otro lugar.
+
+Para probar: marcar un equipo como exterior y guardar la ubicación de su local; crear una OT cercana con ese equipo y revisar el paso 3. Consultar el inicio del planificador y luego la jornada del técnico asignado. Después de una primera consulta, desactivar internet y pulsar Actualizar clima para ver el respaldo. Probar también un local sin ubicación, una fecha lejana y guardar la OT mientras se consulta. El clima real puede no superar los umbrales; las pruebas verifican los límites sin depender del tiempo del día.

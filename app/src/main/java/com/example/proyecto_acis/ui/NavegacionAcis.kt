@@ -1,5 +1,8 @@
 package com.example.proyecto_acis.ui
 
+import com.example.proyecto_acis.domain.ReglasClima
+import com.example.proyecto_acis.ui.components.WeatherBanner
+
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
@@ -50,7 +53,7 @@ private object RutasAcis {
 }
 
 @Composable
-fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, modifier: Modifier = Modifier) {
+fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, climaViewModel: ClimaViewModel, modifier: Modifier = Modifier) {
     val nav = rememberNavController()
     val entrada by nav.currentBackStackEntryAsState()
     val ruta = entrada?.destination?.route ?: RutasAcis.ACCESO
@@ -113,7 +116,7 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, m
                 }
             }
             composable(RutasAcis.INICIO) {
-                InicioPerfil(perfil, visibles, viewModel, onRegistros = { irPrincipal(RutasAcis.REGISTROS) },
+                InicioPerfil(perfil, visibles, viewModel, climaViewModel, onRegistros = { irPrincipal(RutasAcis.REGISTROS) },
                     onCrear = { viewModel.prepararCreacion(); nav.navigate(RutasAcis.CREAR) },
                     onSeleccionar = { nav.navigate(RutasAcis.detalle(it)) })
             }
@@ -122,7 +125,7 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, m
                     onSeleccionar = { nav.navigate(RutasAcis.detalle(it)) })
             }
             composable(RutasAcis.CREAR) {
-                if (perfil == Perfil.PLANIFICADOR) CrearOrden(viewModel,
+                if (perfil == Perfil.PLANIFICADOR) CrearOrden(viewModel, climaViewModel,
                     onVolver = { nav.popBackStack() }, onCrear = {
                         viewModel.crear()?.let { id ->
                             nav.navigate("asignar/$id") {
@@ -133,13 +136,13 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, m
             }
             composable(RutasAcis.DETALLE) { destino ->
                 val orden = visibles.firstOrNull { it.id == destino.arguments?.getString("ordenId") }
-                if (orden != null) DetalleOrden(orden, perfil, viewModel, onVolver = { nav.popBackStack() },
+                if (orden != null) DetalleOrden(orden, perfil, viewModel, climaViewModel, onVolver = { nav.popBackStack() },
                     onEditar = { if (viewModel.prepararEdicion(orden.id)) nav.navigate("editar/${orden.id}") })
                 else Text("La orden no está disponible para este perfil.", Modifier.padding(20.dp))
             }
             composable(RutasAcis.ASIGNAR) { destino ->
                 val orden = visibles.firstOrNull { it.id == destino.arguments?.getString("ordenId") }
-                if (orden != null) DetalleOrden(orden, perfil, viewModel,
+                if (orden != null) DetalleOrden(orden, perfil, viewModel, climaViewModel,
                     onVolver = { nav.popBackStack() }, asignacionInicial = true,
                     onEditar = { if (viewModel.prepararEdicion(orden.id)) nav.navigate("editar/${orden.id}") })
             }
@@ -206,7 +209,7 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, m
             }
             composable(RutasAcis.EDITAR) { destino ->
                 val id = destino.arguments?.getString("ordenId").orEmpty()
-                CrearOrden(viewModel, onVolver = { nav.popBackStack() },
+                CrearOrden(viewModel, climaViewModel, onVolver = { nav.popBackStack() },
                     onCrear = { if (viewModel.guardarEdicion(id)) nav.popBackStack() }, editando = true)
             }
         }
@@ -221,7 +224,7 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, m
                 if (perfil == Perfil.PLANIFICADOR) {
                     NavigationBarItem(selected = ruta in listOf(RutasAcis.EQUIPOS, RutasAcis.EQUIPO, RutasAcis.CLIENTES, RutasAcis.LOCALES, RutasAcis.CLIENTE, RutasAcis.LOCAL),
                         onClick = { irPrincipal(RutasAcis.EQUIPOS) },
-                        icon = { Icon(painterResource(R.drawable.ic_acis_equipment), null) }, label = { Text("Equipos") })
+                        icon = { Icon(painterResource(R.drawable.ic_acis_equipment), null) }, label = { Text("Catálogo") })
                     NavigationBarItem(selected = ruta == RutasAcis.REPORTES,
                         onClick = { irPrincipal(RutasAcis.REPORTES) },
                         icon = { Icon(painterResource(R.drawable.ic_acis_reports), null) }, label = { Text("Reportes") })
@@ -369,7 +372,7 @@ private fun SeleccionPerfil(onSeleccionar: (Perfil) -> Unit) {
 }
 
 @Composable
-private fun InicioPerfil(perfil: Perfil, ordenes: List<OrdenTrabajo>, viewModel: OrdenesViewModel, onRegistros: () -> Unit,
+private fun InicioPerfil(perfil: Perfil, ordenes: List<OrdenTrabajo>, viewModel: OrdenesViewModel, climaViewModel: ClimaViewModel, onRegistros: () -> Unit,
     onCrear: () -> Unit, onSeleccionar: (String) -> Unit) {
     val catastro by viewModel.catastro.collectAsState()
     val context = LocalContext.current
@@ -462,6 +465,24 @@ private fun InicioPerfil(perfil: Perfil, ordenes: List<OrdenTrabajo>, viewModel:
                 Text("+   Crear nueva OT", fontWeight = FontWeight.Bold)
             }
         }
+        if (perfil == Perfil.PLANIFICADOR) {
+            item {
+                Text("Clima de las visitas", style = MaterialTheme.typography.titleLarge)
+                Text("Se consulta para equipos exteriores con la ubicación del local. Alertas: lluvia desde 60% o viento desde 40 km/h.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (viewModel.proximasExteriores(ordenes, catastro).isEmpty()) {
+                    Text("No hay órdenes exteriores pendientes. En Catálogo, edita el equipo y marca Instalado en exterior; luego registra la ubicación en Locales.",
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            viewModel.proximasExteriores(ordenes, catastro).forEach { orden ->
+                item(key = "clima-${orden.id}") {
+                    Text("${orden.id} · ${orden.equipo}", style = MaterialTheme.typography.labelLarge)
+                    WeatherBanner(
+                        ReglasClima.orden(orden, catastro), climaViewModel)
+                }
+            }
+        }
         if (perfil == Perfil.PLANIFICADOR) item {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -527,6 +548,8 @@ private fun InicioPerfil(perfil: Perfil, ordenes: List<OrdenTrabajo>, viewModel:
                                 Button(onClick = { viewModel.aceptar(orden.id) }, modifier = Modifier.weight(1f)) { Text("Aceptar") }
                             }
                         }
+                        if (perfil == Perfil.TECNICO) WeatherBanner(
+                            ReglasClima.orden(orden, catastro), climaViewModel)
                         if (perfil == Perfil.TECNICO && orden.id == siguienteVisita?.id) {
                             OutlinedButton(onClick = {
                                 errorMapa = if (buscarLocalEnMapa(context, com.example.proyecto_acis.domain.DestinoMapa.consulta(orden, catastro))) "" else "No hay una aplicación disponible para abrir el mapa."

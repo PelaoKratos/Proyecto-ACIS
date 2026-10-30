@@ -19,7 +19,7 @@ internal fun EquiposPlanificador(equipos: List<EquipoResumen>, onCrear: (String,
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
-            Text("Equipos", style = MaterialTheme.typography.headlineMedium)
+            Text("Catálogo", style = MaterialTheme.typography.headlineMedium)
             Text("Clientes, locales y equipos guardados en el dispositivo.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

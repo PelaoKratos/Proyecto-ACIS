@@ -1,6 +1,7 @@
 package com.example.proyecto_acis.ui
 
 import android.app.Application
+import com.example.proyecto_acis.domain.ReglasClima
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -176,6 +177,17 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
         ordenObservacionConError = null
         ordenRespuestaConError = null
     }
+    fun proximasExteriores(lista: List<OrdenTrabajo>, datos: Catastro): List<OrdenTrabajo> {
+        val ahora = System.currentTimeMillis()
+        return lista.filter { ReglasClima.orden(it, datos) != null &&
+            it.estado in setOf(EstadoOt.CREADA, EstadoOt.ASIGNADA, EstadoOt.ACEPTADA, EstadoOt.EN_VISITA) }
+            .sortedWith(compareBy<OrdenTrabajo> { (TiempoVisita.fecha(it.fechaProgramada) ?: 0) < ahora }
+                .thenBy {
+                    val fecha = TiempoVisita.fecha(it.fechaProgramada) ?: 0
+                    if (fecha >= ahora) fecha else -fecha
+                }).take(3)
+    }
+
     fun localesDisponibles(datos: Catastro): List<String> = datos.locales.map { it.nombre }
     fun equiposDisponibles(datos: Catastro): List<String> {
         val local = datos.locales.firstOrNull { it.nombre.equals(datosCrear.local, ignoreCase = true) } ?: return emptyList()
@@ -287,8 +299,8 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
         return id
     }
 
-    fun ordenesParaPerfil(lista: List<OrdenTrabajo>, perfilVisible: Perfil): List<OrdenTrabajo> =
-        lista.filter { orden ->
+    fun ordenesParaPerfil(lista: List<OrdenTrabajo>, perfilVisible: Perfil): List<OrdenTrabajo> {
+        val filtradas = lista.filter { orden ->
             when (perfilVisible) {
                 Perfil.PLANIFICADOR -> true
                 Perfil.TECNICO -> orden.tecnico == tecnicoActual
@@ -296,10 +308,13 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
                     EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.OBSERVADA, EstadoOt.CERRADA,
                 )
             }
-        }.sortedWith(
+        }
+        if (perfilVisible == Perfil.TECNICO) return com.example.proyecto_acis.domain.OrdenTecnico.recientes(filtradas)
+        return filtradas.sortedWith(
             compareByDescending<OrdenTrabajo> { it.ultimaActualizacion }
                 .thenByDescending { it.id.removePrefix("OT-").toIntOrNull() ?: 0 },
         )
+    }
 
     fun resumenOperativo(lista: List<OrdenTrabajo>) = ResumenOrdenes.operativo(lista)
     fun catalogoEquipos(lista: List<OrdenTrabajo>, datos: Catastro) = ResumenOrdenes.equipos(lista, datos)
@@ -320,14 +335,12 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     fun jornada(lista: List<OrdenTrabajo>): List<OrdenTrabajo> {
         val formato = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.forLanguageTag("es-CL"))
         val hoy = formato.format(java.util.Date())
-        return lista.filter { it.fechaProgramada.substringBefore(" ") == hoy }
-            .sortedBy { it.fechaProgramada.substringAfter(" ") }
+        return com.example.proyecto_acis.domain.OrdenTecnico.recientes(
+            lista.filter { it.fechaProgramada.substringBefore(" ") == hoy })
     }
 
     fun siguienteVisita(lista: List<OrdenTrabajo>): OrdenTrabajo? {
-        val hoy = jornada(lista)
-        return hoy.firstOrNull { it.estado == EstadoOt.EN_VISITA }
-            ?: hoy.firstOrNull { it.estado == EstadoOt.ACEPTADA || it.estado == EstadoOt.ASIGNADA }
+        return com.example.proyecto_acis.domain.OrdenTecnico.siguiente(jornada(lista))
     }
 
     fun historialEquipo(orden: OrdenTrabajo): List<OrdenTrabajo> = ResumenOrdenes.historialEquipo(orden, ordenes.value)

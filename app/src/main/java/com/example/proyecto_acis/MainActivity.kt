@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
+import com.example.proyecto_acis.ui.ClimaViewModel
 import com.example.proyecto_acis.ui.CatastroViewModel
 import com.example.proyecto_acis.ui.AcisApp
 import com.example.proyecto_acis.ui.OrdenesViewModel
@@ -20,10 +21,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val ordenesViewModel = ViewModelProvider(this)[OrdenesViewModel::class.java]
         val catastroViewModel = ViewModelProvider(this)[CatastroViewModel::class.java]
+        val climaViewModel = ViewModelProvider(this)[ClimaViewModel::class.java]
         setContent {
             ProyectoACISTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AcisApp(viewModel = ordenesViewModel, catastroViewModel = catastroViewModel, modifier = Modifier.padding(innerPadding))
+                    AcisApp(viewModel = ordenesViewModel, catastroViewModel = catastroViewModel,
+                        climaViewModel = climaViewModel, modifier = Modifier.padding(innerPadding))
                 }
             }
         }
