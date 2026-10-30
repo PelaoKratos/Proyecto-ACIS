@@ -132,3 +132,23 @@ La API entrega hasta 16 días. Si la fecha está fuera del pronóstico o faltan 
 La caché se guarda por coordenadas en preferencias locales, sin cambios al esquema SQLite. Se reutiliza durante 30 minutos; Actualizar clima fuerza otra consulta. Si falla la red, se usa un respaldo de hasta 48 horas, identificado como última consulta sin actualizar. Pasado ese plazo se informa que no hay un pronóstico disponible. Cambiar las coordenadas evita reutilizar el pronóstico de otro lugar.
 
 Para probar: marcar un equipo como exterior y guardar la ubicación de su local; crear una OT cercana con ese equipo y revisar el paso 3. Consultar el inicio del planificador y luego la jornada del técnico asignado. Después de una primera consulta, desactivar internet y pulsar Actualizar clima para ver el respaldo. Probar también un local sin ubicación, una fecha lejana y guardar la OT mientras se consulta. El clima real puede no superar los umbrales; las pruebas verifican los límites sin depender del tiempo del día.
+
+
+## Fase 3.2: plazos de servicio y reporte SLA
+
+Rama de trabajo: feature/sla, basada en el avance de feature/clima. SQLite pasa a versión 7 con plazos opcionales por cliente y una copia del acuerdo en cada OT nueva. Las órdenes, fotos e historial anteriores se conservan sin asignarles un contrato retroactivo.
+
+Catálogo > Clientes permite configurar horas para llegar y resolver. Ambos plazos son opcionales; si se informa uno, se requieren ambos como enteros entre 1 y 720, y el de resolución no puede ser menor al de llegada. Comercial Sur demo comienza con 4/24 horas y Servicios Centro demo con 8/48; son supuestos del ejercicio, editables. Los otros clientes no reciben plazos inventados.
+
+Ambos límites se cuentan en horas corridas desde la programación original guardada al crear la OT. Se conservan cliente, nombre, plazos y programación de ese momento: editar el cliente, cambiar el local o postergar la visita no reinicia el acuerdo. Una renegociación de SLA no se implementa en este bloque. El detalle de la OT muestra los plazos originales.
+
+El cálculo usa los eventos de creación, llegada e informe. La resolución se considera al enviar el informe, sin esperar la conformidad del cliente. Llegar o resolver exactamente en el límite cumple. Una llegada tardía o un plazo agotado sin completar implica vencimiento. Se considera en riesgo la última hora antes del próximo límite. Los eventos incompletos, incoherentes o futuros no permiten declarar cumplimiento.
+
+Reportes permite avanzar y retroceder meses. El periodo corresponde a la programación original del acuerdo. Las antiguas sin acuerdo se ubican por su programación disponible y se cuentan como sin datos suficientes. El porcentaje es cumplidas / (cumplidas + vencidas); las pendientes dentro de plazo y las sin datos se informan aparte. El tiempo medio del bloque SLA utiliza llegada e informe verificables del periodo. La actividad general de todos los registros permanece diferenciada debajo.
+
+La lista de riesgo muestra órdenes por atender y abre su detalle. Los contratos se agrupan por identificador del cliente conservado en cada acuerdo; los locales reclasificados no trasladan el historial a otro cliente.
+
+Para revisar: actualizar sin desinstalar, abrir un cliente y probar plazos vacíos, incompletos y válidos. Crear una OT para un equipo de ese cliente, comprobar el acuerdo en el detalle, cambiar luego los plazos del cliente y verificar que la OT conserva los anteriores. Revisar Reportes, cambiar de mes y completar llegada e informe. Las OT antiguas no deben aparecer como cumplidas por faltar información.
+
+
+Verificación del bloque SLA: 38 pruebas unitarias y 15 pruebas Android aprobadas, con migraciones hasta versión 7 y conservación de acuerdos. Arranque, reporte vacío y navegación mensual revisados en el emulador. El teléfono Xiaomi volvió a rechazar instalar la APK de prueba; la ejecución se dirigió exclusivamente al emulador mediante adb. Se conserva pendiente la revisión manual del equipo en el celular.

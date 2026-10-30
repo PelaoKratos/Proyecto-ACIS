@@ -316,6 +316,12 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    var mesReporte by mutableStateOf(0)
+        private set
+    fun cambiarMesReporte(cambio: Int) { mesReporte = (mesReporte + cambio).coerceIn(-120, 12) }
+    fun reporteSla(lista: List<OrdenTrabajo>, historial: List<EventoOt>, ahora: Long) =
+        com.example.proyecto_acis.domain.ReporteSla.mensual(lista, historial, ahora, mesReporte)
+
     fun resumenOperativo(lista: List<OrdenTrabajo>) = ResumenOrdenes.operativo(lista)
     fun catalogoEquipos(lista: List<OrdenTrabajo>, datos: Catastro) = ResumenOrdenes.equipos(lista, datos)
 

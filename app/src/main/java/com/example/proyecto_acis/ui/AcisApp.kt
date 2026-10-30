@@ -592,6 +592,10 @@ internal fun DetalleOrden(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text(orden.tipo.etiqueta, style = MaterialTheme.typography.bodyMedium)
                     CampoDetalle("Fecha programada", orden.fechaProgramada)
+                    orden.acuerdoSla?.let { acuerdo ->
+                        val inicio = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-CL")).format(java.util.Date(acuerdo.inicioMillis))
+                        CampoDetalle("Plazos acordados al crear", "${acuerdo.clienteNombre}: llegada ${acuerdo.horasLlegada} h · resolución ${acuerdo.horasResolucion} h. Desde $inicio.")
+                    }
                     if (perfil != Perfil.CLIENTE) WeatherBanner(ReglasClima.orden(orden, catastro), climaViewModel)
                     if (perfil != Perfil.CLIENTE) {
                         Text(com.example.proyecto_acis.domain.DestinoMapa.descripcion(orden, catastro),
@@ -905,6 +909,7 @@ internal fun CampoFormulario(
     error: String? = null,
     minLines: Int = 1,
     ejemplo: String? = null,
+    tipoTeclado: androidx.compose.ui.text.input.KeyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
 ) {
     val traerAlFrente = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
@@ -914,7 +919,7 @@ internal fun CampoFormulario(
         label = { Text(etiqueta) },
         shape = MaterialTheme.shapes.small,
         placeholder = ejemplo?.let { texto -> { Text(texto) } },
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, keyboardType = tipoTeclado),
         isError = error != null,
         trailingIcon = if (error != null) {{
             Icon(painterResource(android.R.drawable.ic_dialog_alert), contentDescription = "Error en $etiqueta",

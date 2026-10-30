@@ -74,7 +74,7 @@ class HistorialDbTest {
         assertEquals(EstadoOt.EN_VISITA, conservada.estado)
         assertEquals(TipoEvento.REGISTRO_PREVIO, db.leerEventos().single().tipo)
         assertTrue(db.leerEventos().single().detalle.contains("29/10/2026 10:00"))
-        assertEquals(6, db.readableDatabase.version)
+        assertEquals(7, db.readableDatabase.version)
         assertNotNull(conservada.equipoId)
         val equipo = db.leerCatastro().equipos.first { it.id == conservada.equipoId }
         assertEquals("Congelador", equipo.nombre)
@@ -119,7 +119,7 @@ class HistorialDbTest {
         assertEquals(42L, evento.id)
         assertEquals("Evento conservado", evento.detalle)
         assertEquals(TipoEvento.CREACION, evento.tipo)
-        assertEquals(6, db.readableDatabase.version)
+        assertEquals(7, db.readableDatabase.version)
     }
 
     @Test fun estadoAnteriorIncorrectoNoAgregaUnEvento() {
@@ -238,6 +238,48 @@ class HistorialDbTest {
         assertEquals("Cliente actualizado", guardado.clientes.first { it.id == cliente.id }.nombre)
         assertEquals("Local actualizado", guardado.locales.first { it.id == local.id }.nombre)
         assertNull(guardado.locales.first { it.id == local.id }.longitud)
+    }
+
+    @Test fun acuerdoSlaConservaPlazosClienteYProgramacionAlEditar() {
+        val db = base()
+        val repo = OrdenesRepository(context, db, "${nombre}_preferencias")
+        val equipo = repo.catastro.value.equipos.first()
+        val local = repo.catastro.value.locales.first { it.id == equipo.localId }
+        val cliente = repo.catastro.value.clientes.first { it.id == local.clienteId }
+        assertTrue(repo.guardarCliente(com.example.proyecto_acis.domain.DatosCliente(cliente.id, cliente.nombre, "4", "24")))
+        val id = repo.crear(local.nombre, equipo.nombre, "Revisar", "30/10/2026 10:00", TipoOt.PREVENTIVA, PrioridadOt.MEDIA)!!
+        val creada = repo.ordenes.value.first { it.id == id }
+        val acuerdo = creada.acuerdoSla!!
+        assertEquals(4, acuerdo.horasLlegada)
+        assertEquals(cliente.id, acuerdo.clienteId)
+        assertTrue(repo.guardarCliente(com.example.proyecto_acis.domain.DatosCliente(cliente.id, "Cliente renombrado", "8", "48")))
+        assertTrue(db.actualizar(creada.copy(fechaProgramada = "31/10/2026 12:00", acuerdoSla = null), EstadoOt.CREADA))
+        db.close()
+        assertEquals(acuerdo, base().leer().first { it.id == id }.acuerdoSla)
+    }
+
+    @Test fun migracionDesdeSeisConservaOrdenesSinInventarAcuerdos() {
+        val archivo = context.getDatabasePath(nombre)
+        archivo.parentFile?.mkdirs()
+        SQLiteDatabase.openOrCreateDatabase(archivo, null).use { anterior ->
+            CatastroSql.crear(anterior)
+            val columnas = listOf("local", "equipo", "descripcion", "fechaProgramada", "tipo", "prioridad", "estado",
+                "tecnico", "checkIn", "ubicacionCheckIn", "checkOut", "diagnostico", "actividad", "materiales", "observacionCliente",
+                "respuestaTecnico", "fechaConformidad", "fotoEvidencia")
+            anterior.execSQL("CREATE TABLE ordenes (id TEXT PRIMARY KEY, " + columnas.joinToString { "$it TEXT NOT NULL DEFAULT ''" } +
+                ", ultimaActualizacion INTEGER NOT NULL DEFAULT 0, equipoId TEXT REFERENCES equipos(id))")
+            anterior.execSQL("CREATE TABLE eventos_ot (id INTEGER PRIMARY KEY AUTOINCREMENT, otId TEXT NOT NULL REFERENCES ordenes(id) ON DELETE CASCADE, tipo TEXT NOT NULL, rol TEXT NOT NULL, actor TEXT NOT NULL, fechaMillis INTEGER NOT NULL, detalle TEXT NOT NULL)")
+            anterior.insertOrThrow("ordenes", null, ContentValues().apply {
+                put("id", "OT-ANTERIOR"); put("estado", EstadoOt.EN_VISITA.name); put("fotoEvidencia", "antes.jpg")
+            })
+            anterior.version = 6
+        }
+        val db = base()
+        assertEquals(7, db.readableDatabase.version)
+        assertEquals("antes.jpg", db.leer().single().fotoEvidencia)
+        assertNull(db.leer().single().acuerdoSla)
+        assertEquals(4, db.leerCatastro().clientes.first { it.id == "cliente-demo-comercial" }.horasLlegada)
+        assertEquals(48, db.leerCatastro().clientes.first { it.id == "cliente-demo-servicios" }.horasResolucion)
     }
 
 }

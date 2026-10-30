@@ -39,4 +39,15 @@ class ValidadorCatastroTest {
         assertNull(ValidadorCatastro.leerUbicacion("1,2,3"))
         assertNull(ValidadorCatastro.leerUbicacion("91,0"))
     }
+    @Test fun plazosOpcionalesExigenParCompletoYHorasOrdenadas() {
+        val datos = DatosCliente(nombre = "Cliente nuevo")
+        assertFalse(ValidadorCatastro.erroresCliente(datos, catastro).hayErrores)
+        assertFalse(ValidadorCatastro.erroresCliente(datos.copy(horasLlegada = "4", horasResolucion = "24"), catastro).hayErrores)
+        assertNotNull(ValidadorCatastro.erroresCliente(datos.copy(horasLlegada = "4"), catastro).resolucion)
+        assertNotNull(ValidadorCatastro.erroresCliente(datos.copy(horasLlegada = "0", horasResolucion = "24"), catastro).llegada)
+        assertNotNull(ValidadorCatastro.erroresCliente(datos.copy(horasLlegada = "8", horasResolucion = "4"), catastro).resolucion)
+        assertNotNull(ValidadorCatastro.erroresCliente(datos.copy(horasLlegada = "1.5", horasResolucion = "24"), catastro).llegada)
+        assertNotNull(ValidadorCatastro.erroresCliente(datos.copy(horasLlegada = "4", horasResolucion = "721"), catastro).resolucion)
+    }
+
 }

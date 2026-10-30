@@ -9,7 +9,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOpenHelper(context, nombre, null, 6) {
+class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOpenHelper(context, nombre, null, 7) {
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
     }
@@ -42,6 +42,7 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
             )
         """.trimIndent())
         crearTablaEventos(db)
+        agregarSla(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -71,6 +72,7 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
             db.execSQL("ALTER TABLE ordenes ADD COLUMN equipoId TEXT REFERENCES equipos(id)")
             CatastroSql.vincularOrdenes(db)
         }
+        if (oldVersion < 7) agregarSla(db)
     }
 
     fun leer(): List<OrdenTrabajo> = readableDatabase.query(
@@ -102,6 +104,7 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
                     fechaConformidad = cursor.valor("fechaConformidad"),
                     fotoEvidencia = cursor.valor("fotoEvidencia"),
                     ultimaActualizacion = cursor.getLong(cursor.getColumnIndexOrThrow("ultimaActualizacion")),
+                    acuerdoSla = leerAcuerdo(cursor),
                     equipoId = cursor.getString(cursor.getColumnIndexOrThrow("equipoId")),
                 ))
             }
@@ -126,7 +129,9 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
     fun insertar(orden: OrdenTrabajo, evento: EventoOt? = null): Boolean {
         if (evento != null && evento.otId != orden.id) return false
         return transaccion { db ->
-            val vinculada = vincularEquipo(db, orden)
+            val equipo = vincularEquipo(db, orden)
+            val vinculada = if (evento?.tipo == TipoEvento.CREACION)
+                equipo.copy(acuerdoSla = CatastroSql.acuerdo(db, equipo)) else equipo
             db.insertOrThrow("ordenes", null, valores(vinculada))
             if (vinculada.estado == EstadoOt.CERRADA) vinculada.equipoId?.let { CatastroSql.actualizarMantencion(db, it, vinculada.checkOut) }
             if (evento != null) insertarEvento(db, evento)
@@ -138,7 +143,9 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
         if (evento != null && evento.otId != orden.id) return false
         return transaccion { db ->
             val vinculada = vincularEquipo(db, orden)
-            if (db.update("ordenes", valores(vinculada), "id = ? AND estado = ?", arrayOf(orden.id, estadoAnterior.name)) != 1) false
+            if (db.update("ordenes", valores(vinculada).apply {
+                listOf("slaClienteId", "slaClienteNombre", "slaHorasLlegada", "slaHorasResolucion", "slaInicio").forEach { remove(it) }
+            }, "id = ? AND estado = ?", arrayOf(orden.id, estadoAnterior.name)) != 1) false
             else {
                 if (vinculada.estado == EstadoOt.CERRADA) vinculada.equipoId?.let { CatastroSql.actualizarMantencion(db, it, vinculada.checkOut) }
                 if (evento != null) insertarEvento(db, evento)
@@ -182,6 +189,22 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
         } finally {
             if (db.inTransaction()) db.endTransaction()
         }
+    }
+
+    private fun agregarSla(db: SQLiteDatabase) {
+        CatastroSql.agregarSla(db)
+        db.execSQL("ALTER TABLE ordenes ADD COLUMN slaClienteId TEXT")
+        db.execSQL("ALTER TABLE ordenes ADD COLUMN slaClienteNombre TEXT")
+        db.execSQL("ALTER TABLE ordenes ADD COLUMN slaHorasLlegada INTEGER")
+        db.execSQL("ALTER TABLE ordenes ADD COLUMN slaHorasResolucion INTEGER")
+        db.execSQL("ALTER TABLE ordenes ADD COLUMN slaInicio INTEGER")
+    }
+    private fun leerAcuerdo(cursor: Cursor): AcuerdoSla? {
+        if (cursor.isNull(cursor.getColumnIndexOrThrow("slaClienteId"))) return null
+        return AcuerdoSla(cursor.valor("slaClienteId"), cursor.valor("slaClienteNombre"),
+            cursor.getInt(cursor.getColumnIndexOrThrow("slaHorasLlegada")),
+            cursor.getInt(cursor.getColumnIndexOrThrow("slaHorasResolucion")),
+            cursor.getLong(cursor.getColumnIndexOrThrow("slaInicio")))
     }
 
     private fun crearTablaEventos(db: SQLiteDatabase) {
@@ -238,6 +261,11 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
         put("fotoEvidencia", orden.fotoEvidencia)
         put("ultimaActualizacion", orden.ultimaActualizacion)
         put("equipoId", orden.equipoId)
+        put("slaClienteId", orden.acuerdoSla?.clienteId)
+        put("slaClienteNombre", orden.acuerdoSla?.clienteNombre)
+        put("slaHorasLlegada", orden.acuerdoSla?.horasLlegada)
+        put("slaHorasResolucion", orden.acuerdoSla?.horasResolucion)
+        put("slaInicio", orden.acuerdoSla?.inicioMillis)
     }
 
     private fun Cursor.valor(campo: String): String = getString(getColumnIndexOrThrow(campo)).orEmpty()

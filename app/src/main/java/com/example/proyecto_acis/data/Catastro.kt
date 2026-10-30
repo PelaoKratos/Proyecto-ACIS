@@ -1,6 +1,10 @@
 package com.example.proyecto_acis.data
 
-data class Cliente(val id: String, val nombre: String, val esDemo: Boolean = false)
+data class Cliente(val id: String, val nombre: String, val esDemo: Boolean = false,
+    val horasLlegada: Int? = null, val horasResolucion: Int? = null)
+
+data class AcuerdoSla(val clienteId: String, val clienteNombre: String,
+    val horasLlegada: Int, val horasResolucion: Int, val inicioMillis: Long)
 
 data class Local(
     val id: String,

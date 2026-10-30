@@ -3,6 +3,7 @@ package com.example.proyecto_acis.ui
 import com.example.proyecto_acis.domain.ReglasClima
 import com.example.proyecto_acis.ui.components.WeatherBanner
 
+import kotlinx.coroutines.delay
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
@@ -59,6 +60,7 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, c
     val ruta = entrada?.destination?.route ?: RutasAcis.ACCESO
     val ordenes by viewModel.ordenes.collectAsState()
     val catastro by viewModel.catastro.collectAsState()
+    val eventos by viewModel.eventos.collectAsState()
     val perfil = viewModel.perfil
     val visibles = viewModel.ordenesParaPerfil(ordenes, perfil)
     val enAcceso = ruta == RutasAcis.ACCESO
@@ -198,7 +200,13 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, c
                 }
             }
             composable(RutasAcis.REPORTES) {
-                if (perfil == Perfil.PLANIFICADOR) ReportePlanificador(viewModel.resumenOperativo(visibles))
+                if (perfil == Perfil.PLANIFICADOR) {
+                    var reloj by remember { mutableStateOf(System.currentTimeMillis()) }
+                    LaunchedEffect(Unit) { while (true) { reloj = System.currentTimeMillis(); delay(30_000) } }
+                    ReportePlanificador(viewModel.resumenOperativo(visibles), viewModel.reporteSla(visibles, eventos, reloj),
+                        onMes = viewModel::cambiarMesReporte,
+                        onSeleccionar = { nav.navigate(RutasAcis.detalle(it)) })
+                }
             }
             composable(RutasAcis.PERFIL) {
                 PerfilActual(perfil, viewModel.tecnicoActual,

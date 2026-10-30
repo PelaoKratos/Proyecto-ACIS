@@ -40,6 +40,9 @@ internal fun ListaClientes(catastro: Catastro, onNuevo: () -> Unit, onEditar: (S
                     Text(cliente.nombre, style = MaterialTheme.typography.titleMedium)
                     val cantidad = catastro.locales.count { it.clienteId == cliente.id }
                     Text(if (cantidad == 1) "1 local registrado" else "$cantidad locales registrados")
+                    Text(if (cliente.horasLlegada != null && cliente.horasResolucion != null)
+                        "Plazos: llegada ${cliente.horasLlegada} h · resolución ${cliente.horasResolucion} h"
+                        else "Sin plazos de servicio configurados", style = MaterialTheme.typography.bodySmall)
                     if (cliente.esDemo) Text("Registro de demostración", style = MaterialTheme.typography.bodySmall)
                     if (cliente.id == ValidadorCatastro.CLIENTE_PENDIENTE) {
                         Text("Edita cada local para indicar a qué cliente pertenece.")
@@ -99,6 +102,14 @@ internal fun FormularioCliente(viewModel: CatastroViewModel, onVolver: () -> Uni
                 style = MaterialTheme.typography.headlineMedium) }
             item { CampoFormulario(viewModel.datosCliente.nombre, viewModel::cambiarNombreCliente,
                 "Nombre del cliente", viewModel.errorCliente, ejemplo = "Ej. Comercial del Sur") }
+            item {
+                Text("Plazos de servicio (SLA) · opcionales", style = MaterialTheme.typography.titleMedium)
+                Text("Horas desde la programación original de la visita. Deja ambos vacíos si no hay acuerdo. Los cambios se aplican a nuevas órdenes.")
+            }
+            item { CampoFormulario(viewModel.datosCliente.horasLlegada, viewModel::cambiarHorasLlegada,
+                "Horas para llegar", viewModel.erroresCliente.llegada, ejemplo = "Ej. 4", tipoTeclado = androidx.compose.ui.text.input.KeyboardType.Number) }
+            item { CampoFormulario(viewModel.datosCliente.horasResolucion, viewModel::cambiarHorasResolucion,
+                "Horas para resolver", viewModel.erroresCliente.resolucion, ejemplo = "Ej. 24", tipoTeclado = androidx.compose.ui.text.input.KeyboardType.Number) }
             if (viewModel.mensajeCliente.isNotBlank()) item { Text(viewModel.mensajeCliente, color = MaterialTheme.colorScheme.error) }
         }
         AccionesCatastro(onVolver) { focus.clearFocus(); if (viewModel.guardarCliente()) onVolver() }

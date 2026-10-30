@@ -29,7 +29,7 @@ Comprobación de la API con coordenadas públicas de ejemplo: respuesta de 384 h
 
 ## Pendiente
 
-- 3.2: plazos SLA por cliente y reporte con periodo, cobertura y órdenes en riesgo.
+- 3.2 implementado: pendiente revisión del equipo en el celular.
 - 3.3: estado de sincronización mediante un repositorio simulado, identificado expresamente como simulación.
 
 No hay backend ni sincronización real.
@@ -40,3 +40,15 @@ No hay backend ni sincronización real.
 La sección del planificador se llama Catálogo porque reúne clientes, locales y equipos. Las OT del técnico se presentan por número de creación descendente; una actualización de una orden antigua no la convierte en nueva. La visita destacada conserva su selección por horario y da prioridad a una visita en curso.
 
 Inicio muestra siempre una explicación de Clima de las visitas. Si no hay órdenes exteriores pendientes, indica cómo configurar equipo y local. Se incluyen hasta tres pendientes, priorizando las futuras y luego las vencidas más recientes. El detalle de una OT exterior también muestra el pronóstico o el motivo por el que no está disponible.
+
+
+## 3.2 SLA — feature/sla
+
+- SQLite 7 conserva el catastro anterior y agrega plazos por cliente. Las OT nuevas guardan una copia del acuerdo y programación original; las anteriores no reciben contratos retroactivos.
+- Plazos opcionales y validados en Catálogo > Clientes. Valores demo: 4/24 h y 8/48 h.
+- Reporte por mes de programación original: cumplimiento, cobertura, tiempo medio desde eventos, detalle por cliente y órdenes en riesgo o vencidas por atender.
+- La resolución usa el informe del técnico; la aprobación del cliente no altera el plazo. Modificar o postergar no reinicia el acuerdo original.
+- Compilación correcta, 38 pruebas unitarias y 15 pruebas Android sin fallos. Incluyen migraciones 4→7, 5→7 y 6→7, así como conservación del acuerdo al editar cliente y orden.
+- Las pruebas Android se ejecutaron directamente con adb en emulator-5580. El teléfono Xiaomi rechazó instalar la APK de pruebas y no se volvió a intentar allí.
+- Revisados el arranque, el reporte sin datos y el cambio de mes en el emulador. Captura local: app/build/acis-sla.png.
+- Pendiente revisión del equipo en celular: formulario de cliente, acuerdo de OT nueva y resultados al finalizar una visita.

@@ -56,22 +56,25 @@ class CatastroViewModel(application: Application) : AndroidViewModel(application
         private set
     var mensajeUbicacion by mutableStateOf("")
         private set
-    val errorCliente get() = if (validarCliente) ValidadorCatastro.cliente(datosCliente, catastro.value) else null
+    val erroresCliente get() = if (validarCliente) ValidadorCatastro.erroresCliente(datosCliente, catastro.value) else ErroresCliente()
+    val errorCliente get() = erroresCliente.nombre
     val erroresLocal get() = if (validarLocal) ValidadorCatastro.local(datosLocal, catastro.value) else ErroresLocal()
 
     fun prepararCliente(id: String? = null): Boolean {
         if (perfil != Perfil.PLANIFICADOR || id == ValidadorCatastro.CLIENTE_PENDIENTE) return false
         val cliente = id?.let { elegido -> catastro.value.clientes.firstOrNull { it.id == elegido } ?: return false }
-        datosCliente = cliente?.let { DatosCliente(it.id, it.nombre) } ?: DatosCliente()
+        datosCliente = cliente?.let { DatosCliente(it.id, it.nombre, it.horasLlegada?.toString().orEmpty(), it.horasResolucion?.toString().orEmpty()) } ?: DatosCliente()
         validarCliente = false
         mensajeCliente = ""
         return true
     }
     fun cambiarNombreCliente(valor: String) { datosCliente = datosCliente.copy(nombre = valor) }
+    fun cambiarHorasLlegada(valor: String) { datosCliente = datosCliente.copy(horasLlegada = valor) }
+    fun cambiarHorasResolucion(valor: String) { datosCliente = datosCliente.copy(horasResolucion = valor) }
     fun guardarCliente(): Boolean {
         if (perfil != Perfil.PLANIFICADOR) return false
         validarCliente = true
-        if (errorCliente != null) return false
+        if (erroresCliente.hayErrores) return false
         val guardado = repository.guardarCliente(datosCliente)
         mensajeCliente = if (guardado) "Cliente guardado." else "No se pudo guardar. Intenta nuevamente."
         return guardado

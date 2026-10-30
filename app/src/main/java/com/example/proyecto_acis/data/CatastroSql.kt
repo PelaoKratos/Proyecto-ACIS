@@ -105,7 +105,11 @@ internal object CatastroSql {
 
     fun guardarCliente(db: SQLiteDatabase, datos: DatosCliente): Boolean {
         if (ValidadorCatastro.cliente(datos, leer(db)) != null) return false
-        val valores = ContentValues().apply { put("nombre", datos.nombre.trim()) }
+        val valores = ContentValues().apply {
+            put("nombre", datos.nombre.trim())
+            put("horasLlegada", datos.horasLlegada.trim().toIntOrNull())
+            put("horasResolucion", datos.horasResolucion.trim().toIntOrNull())
+        }
         return if (datos.id == null) {
             valores.put("id", UUID.randomUUID().toString())
             db.insertOrThrow("clientes", null, valores) != -1L
@@ -142,7 +146,8 @@ internal object CatastroSql {
 
     fun leer(db: SQLiteDatabase): Catastro {
         val clientes = db.query("clientes", null, null, null, null, null, "nombre ASC").use { cursor ->
-            buildList { while (cursor.moveToNext()) add(Cliente(cursor.texto("id"), cursor.texto("nombre"), cursor.numero("esDemo") == 1L)) }
+            buildList { while (cursor.moveToNext()) add(Cliente(cursor.texto("id"), cursor.texto("nombre"), cursor.numero("esDemo") == 1L,
+                cursor.enteroOpcional("horasLlegada"), cursor.enteroOpcional("horasResolucion"))) }
         }
         val locales = db.query("locales", null, null, null, null, null, "nombre ASC").use { cursor ->
             buildList { while (cursor.moveToNext()) add(Local(cursor.texto("id"), cursor.texto("clienteId"), cursor.texto("nombre"),
@@ -154,6 +159,27 @@ internal object CatastroSql {
                 cursor.getColumnIndexOrThrow("ultimaMantencion").let { if (cursor.isNull(it)) null else cursor.getLong(it) })) }
         }
         return Catastro(clientes, locales, equipos)
+    }
+
+    fun agregarSla(db: SQLiteDatabase) {
+        db.execSQL("ALTER TABLE clientes ADD COLUMN horasLlegada INTEGER")
+        db.execSQL("ALTER TABLE clientes ADD COLUMN horasResolucion INTEGER")
+        db.execSQL("UPDATE clientes SET horasLlegada = 4, horasResolucion = 24 WHERE id = 'cliente-demo-comercial'")
+        db.execSQL("UPDATE clientes SET horasLlegada = 8, horasResolucion = 48 WHERE id = 'cliente-demo-servicios'")
+    }
+
+    fun acuerdo(db: SQLiteDatabase, orden: OrdenTrabajo): AcuerdoSla? {
+        val datos = leer(db)
+        val equipo = datos.equipos.firstOrNull { it.id == orden.equipoId } ?: return null
+        val local = datos.locales.firstOrNull { it.id == equipo.localId } ?: return null
+        val cliente = datos.clientes.firstOrNull { it.id == local.clienteId } ?: return null
+        val llegada = cliente.horasLlegada ?: return null
+        val resolucion = cliente.horasResolucion ?: return null
+        val inicio = TiempoVisita.fecha(orden.fechaProgramada) ?: return null
+        return AcuerdoSla(cliente.id, cliente.nombre, llegada, resolucion, inicio)
+    }
+    private fun Cursor.enteroOpcional(campo: String): Int? = getColumnIndexOrThrow(campo).let {
+        if (isNull(it)) null else getInt(it)
     }
 
     private fun id(db: SQLiteDatabase, tabla: String, seleccion: String, argumentos: Array<String>): String? =
