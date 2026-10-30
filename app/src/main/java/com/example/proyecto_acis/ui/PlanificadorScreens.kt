@@ -14,31 +14,39 @@ import com.example.proyecto_acis.ui.theme.EstadoColors
 import java.util.Locale
 
 @Composable
-internal fun EquiposPlanificador(equipos: List<EquipoResumen>, onCrear: (String, String) -> Unit) {
+internal fun EquiposPlanificador(equipos: List<EquipoResumen>, onCrear: (String, String) -> Unit,
+    onNuevo: () -> Unit, onEditar: (String) -> Unit, mensaje: String = "") {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text("Equipos", style = MaterialTheme.typography.headlineMedium)
-            Text("Catálogo de demostración y equipos registrados en tus órdenes.",
+            Text("Clientes, locales y equipos guardados en el dispositivo.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        item { Button(onClick = onNuevo, modifier = Modifier.fillMaxWidth()) { Text("Agregar equipo") } }
+        if (mensaje.isNotBlank()) item { Text(mensaje, color = MaterialTheme.colorScheme.primary) }
         if (equipos.isEmpty()) item {
             Text("Todavía no hay equipos para mostrar.")
         }
-        items(equipos, key = { "${it.local.length}:${it.local}${it.nombre}" }) { equipo ->
+        items(equipos, key = { it.id }) { equipo ->
             Card(Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(equipo.nombre, style = MaterialTheme.typography.titleMedium)
                     Text(equipo.local, color = MaterialTheme.colorScheme.primary)
-                    Text(if (equipo.delCatalogoDemo) "Del catálogo de demostración" else "Registrado en una orden",
+                    Text(equipo.cliente, style = MaterialTheme.typography.bodySmall)
+                    Text("${equipo.tipo} · ${if (equipo.esExterior) "Exterior" else "Interior / sin especificar"}",
+                        style = MaterialTheme.typography.bodySmall)
+                    if (equipo.ubicacion.isNotBlank()) Text(equipo.ubicacion, style = MaterialTheme.typography.bodySmall)
+                    Text(if (equipo.delCatalogoDemo) "Del catálogo de demostración" else "Registro local",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text("${equipo.visitas} órdenes registradas", style = MaterialTheme.typography.bodyMedium)
                     Text(equipo.ultimaMantencion?.let { "Última mantención cerrada: $it" }
                         ?: "Sin mantenciones cerradas registradas.", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { onEditar(equipo.id) }, modifier = Modifier.fillMaxWidth()) { Text("Editar equipo") }
                     OutlinedButton(onClick = { onCrear(equipo.local, equipo.nombre) }, modifier = Modifier.fillMaxWidth()) {
                         Text("Crear OT para este equipo")
                     }

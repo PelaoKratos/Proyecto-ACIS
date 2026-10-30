@@ -1,13 +1,19 @@
 package com.example.proyecto_acis.data
 
+import com.example.proyecto_acis.domain.DatosEquipo
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db", null, 4) {
+class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOpenHelper(context, nombre, null, 6) {
+    override fun onConfigure(db: SQLiteDatabase) {
+        db.setForeignKeyConstraintsEnabled(true)
+    }
+
     override fun onCreate(db: SQLiteDatabase) {
+        CatastroSql.crear(db)
         db.execSQL("""
             CREATE TABLE ordenes (
                 id TEXT PRIMARY KEY,
@@ -29,9 +35,11 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
                 respuestaTecnico TEXT NOT NULL,
                 fechaConformidad TEXT NOT NULL,
                 fotoEvidencia TEXT NOT NULL DEFAULT '',
-                ultimaActualizacion INTEGER NOT NULL DEFAULT 0
+                ultimaActualizacion INTEGER NOT NULL DEFAULT 0,
+                equipoId TEXT REFERENCES equipos(id)
             )
         """.trimIndent())
+        crearTablaEventos(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -43,6 +51,23 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         }
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE ordenes ADD COLUMN ubicacionCheckIn TEXT NOT NULL DEFAULT ''")
+        }
+        if (oldVersion < 5) {
+            crearTablaEventos(db)
+            val fecha = System.currentTimeMillis()
+            db.query("ordenes", arrayOf("id", "estado", "checkIn", "checkOut", "fechaConformidad"), null, null, null, null, "id ASC").use { cursor ->
+                while (cursor.moveToNext()) {
+                    insertarEvento(db, EventoOt(otId = cursor.valor("id"), tipo = TipoEvento.REGISTRO_PREVIO,
+                        actor = "Sistema local", fechaMillis = fecha,
+                        detalle = detalleRegistroPrevio(cursor.valor("estado"), cursor.valor("checkIn"),
+                            cursor.valor("checkOut"), cursor.valor("fechaConformidad"))))
+                }
+            }
+        }
+        if (oldVersion < 6) {
+            CatastroSql.crear(db)
+            db.execSQL("ALTER TABLE ordenes ADD COLUMN equipoId TEXT REFERENCES equipos(id)")
+            CatastroSql.vincularOrdenes(db)
         }
     }
 
@@ -75,40 +100,109 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
                     fechaConformidad = cursor.valor("fechaConformidad"),
                     fotoEvidencia = cursor.valor("fotoEvidencia"),
                     ultimaActualizacion = cursor.getLong(cursor.getColumnIndexOrThrow("ultimaActualizacion")),
+                    equipoId = cursor.getString(cursor.getColumnIndexOrThrow("equipoId")),
                 ))
             }
         }
     }
 
-    fun insertar(orden: OrdenTrabajo): Boolean = try {
-        writableDatabase.insert("ordenes", null, valores(orden)) != -1L
-    } catch (_: Exception) {
-        false
+    fun leerEventos(): List<EventoOt> = readableDatabase.query(
+        "eventos_ot", null, null, null, null, null, "fechaMillis ASC, id ASC",
+    ).use { cursor ->
+        buildList {
+            while (cursor.moveToNext()) add(EventoOt(
+                id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                otId = cursor.valor("otId"),
+                tipo = TipoEvento.entries.firstOrNull { it.name == cursor.valor("tipo") } ?: TipoEvento.REGISTRO_PREVIO,
+                actor = cursor.valor("actor"), rolActor = cursor.valor("rol"),
+                fechaMillis = cursor.getLong(cursor.getColumnIndexOrThrow("fechaMillis")),
+                detalle = cursor.valor("detalle"),
+            ))
+        }
     }
 
-    fun actualizar(orden: OrdenTrabajo, estadoAnterior: EstadoOt): Boolean = try {
-        writableDatabase.update(
-            "ordenes", valores(orden), "id = ? AND estado = ?",
-            arrayOf(orden.id, estadoAnterior.name),
-        ) == 1
-    } catch (_: Exception) {
-        false
+    fun insertar(orden: OrdenTrabajo, evento: EventoOt? = null): Boolean {
+        if (evento != null && evento.otId != orden.id) return false
+        return transaccion { db ->
+            val vinculada = vincularEquipo(db, orden)
+            db.insertOrThrow("ordenes", null, valores(vinculada))
+            if (vinculada.estado == EstadoOt.CERRADA) vinculada.equipoId?.let { CatastroSql.actualizarMantencion(db, it, vinculada.checkOut) }
+            if (evento != null) insertarEvento(db, evento)
+            true
+        }
     }
 
-    fun guardarTodas(ordenes: List<OrdenTrabajo>): Boolean {
-        val db = writableDatabase
+    fun actualizar(orden: OrdenTrabajo, estadoAnterior: EstadoOt, evento: EventoOt? = null): Boolean {
+        if (evento != null && evento.otId != orden.id) return false
+        return transaccion { db ->
+            val vinculada = vincularEquipo(db, orden)
+            if (db.update("ordenes", valores(vinculada), "id = ? AND estado = ?", arrayOf(orden.id, estadoAnterior.name)) != 1) false
+            else {
+                if (vinculada.estado == EstadoOt.CERRADA) vinculada.equipoId?.let { CatastroSql.actualizarMantencion(db, it, vinculada.checkOut) }
+                if (evento != null) insertarEvento(db, evento)
+                true
+            }
+        }
+    }
+
+    fun guardarTodas(ordenes: List<OrdenTrabajo>): Boolean = transaccion { db ->
+        ordenes.forEach { orden ->
+            val vinculada = vincularEquipo(db, orden)
+            db.insertOrThrow("ordenes", null, valores(vinculada))
+            if (vinculada.estado == EstadoOt.CERRADA) vinculada.equipoId?.let { CatastroSql.actualizarMantencion(db, it, vinculada.checkOut) }
+            insertarEvento(db, EventoOt(otId = orden.id, tipo = TipoEvento.REGISTRO_PREVIO,
+                actor = "Sistema local", fechaMillis = System.currentTimeMillis(),
+                detalle = detalleRegistroPrevio(orden.estado.etiqueta, orden.checkIn, orden.checkOut, orden.fechaConformidad)))
+        }
+        true
+    }
+
+    fun leerCatastro(): Catastro = CatastroSql.leer(readableDatabase)
+
+    fun guardarEquipo(datos: DatosEquipo): Boolean = transaccion { db -> CatastroSql.guardarEquipo(db, datos) }
+
+
+    private fun vincularEquipo(db: SQLiteDatabase, orden: OrdenTrabajo): OrdenTrabajo =
+        if (orden.equipoId != null) orden else orden.copy(equipoId = CatastroSql.asegurarEquipo(db, orden.local, orden.equipo))
+
+    private fun transaccion(operacion: (SQLiteDatabase) -> Boolean): Boolean {
+        val db = try { writableDatabase } catch (_: Exception) { return false }
         return try {
             db.beginTransaction()
-            ordenes.forEach { orden ->
-                if (db.insert("ordenes", null, valores(orden)) == -1L) error("No se pudo guardar la OT")
-            }
-            db.setTransactionSuccessful()
-            true
+            val correcto = operacion(db)
+            if (correcto) db.setTransactionSuccessful()
+            correcto
         } catch (_: Exception) {
             false
         } finally {
             if (db.inTransaction()) db.endTransaction()
         }
+    }
+
+    private fun crearTablaEventos(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE eventos_ot (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                otId TEXT NOT NULL REFERENCES ordenes(id) ON DELETE CASCADE,
+                tipo TEXT NOT NULL,
+                rol TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                fechaMillis INTEGER NOT NULL,
+                detalle TEXT NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX eventos_por_orden ON eventos_ot(otId, fechaMillis, id)")
+    }
+
+    private fun insertarEvento(db: SQLiteDatabase, evento: EventoOt) {
+        db.insertOrThrow("eventos_ot", null, ContentValues().apply {
+            put("otId", evento.otId)
+            put("tipo", evento.tipo.name)
+            put("rol", evento.rolActor)
+            put("actor", evento.actor)
+            put("fechaMillis", evento.fechaMillis)
+            put("detalle", evento.detalle)
+        })
     }
 
     fun eliminar(id: String, estado: EstadoOt): Boolean = try {
@@ -138,6 +232,7 @@ class OrdenesDb(context: Context) : SQLiteOpenHelper(context, "acis_ordenes.db",
         put("fechaConformidad", orden.fechaConformidad)
         put("fotoEvidencia", orden.fotoEvidencia)
         put("ultimaActualizacion", orden.ultimaActualizacion)
+        put("equipoId", orden.equipoId)
     }
 
     private fun Cursor.valor(campo: String): String = getString(getColumnIndexOrThrow(campo)).orEmpty()

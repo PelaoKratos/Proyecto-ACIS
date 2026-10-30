@@ -6,13 +6,17 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
-import com.example.proyecto_acis.data.CatalogoDemo
+import com.example.proyecto_acis.data.EventoOt
+import com.example.proyecto_acis.data.Catastro
 import com.example.proyecto_acis.data.EstadoOt
 import com.example.proyecto_acis.data.OrdenTrabajo
 import com.example.proyecto_acis.data.OrdenesRepository
 import com.example.proyecto_acis.data.Perfil
 import com.example.proyecto_acis.data.PrioridadOt
 import com.example.proyecto_acis.data.TipoOt
+import com.example.proyecto_acis.domain.DatosEquipo
+import com.example.proyecto_acis.domain.ErroresEquipo
+import com.example.proyecto_acis.domain.ValidadorEquipo
 import com.example.proyecto_acis.domain.ResumenOrdenes
 import com.example.proyecto_acis.domain.DatosCrearOt
 import com.example.proyecto_acis.domain.ErroresCrearOt
@@ -28,6 +32,38 @@ enum class FiltroOt { TODAS, SIN_ASIGNAR, EN_VISITA, OBSERVADAS }
 class OrdenesViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = OrdenesRepository(application)
     val ordenes = repository.ordenes
+    val eventos = repository.eventos
+    val catastro = repository.catastro
+    var datosEquipo by mutableStateOf(DatosEquipo())
+        private set
+    private var mostrarErroresEquipo by mutableStateOf(false)
+    var mensajeEquipo by mutableStateOf("")
+        private set
+    val erroresEquipo: ErroresEquipo get() = if (mostrarErroresEquipo)
+        ValidadorEquipo.validar(datosEquipo, catastro.value, ordenes.value.mapNotNull { it.equipoId }.toSet()) else ErroresEquipo()
+
+    fun prepararEquipo(id: String? = null): Boolean {
+        if (perfil != Perfil.PLANIFICADOR) return false
+        val equipo = id?.let { elegido -> catastro.value.equipos.firstOrNull { it.id == elegido } ?: return false }
+        datosEquipo = equipo?.let { DatosEquipo(it.id, it.localId, it.nombre, it.tipo, it.ubicacion, it.esExterior) } ?: DatosEquipo()
+        mostrarErroresEquipo = false
+        mensajeEquipo = ""
+        return true
+    }
+    fun cambiarLocalEquipo(id: String) { datosEquipo = datosEquipo.copy(localId = id) }
+    fun cambiarNombreEquipo(valor: String) { datosEquipo = datosEquipo.copy(nombre = valor) }
+    fun cambiarTipoEquipo(valor: String) { datosEquipo = datosEquipo.copy(tipo = valor) }
+    fun cambiarUbicacionEquipo(valor: String) { datosEquipo = datosEquipo.copy(ubicacion = valor) }
+    fun cambiarExteriorEquipo(valor: Boolean) { datosEquipo = datosEquipo.copy(esExterior = valor) }
+    fun guardarEquipo(): Boolean {
+        if (perfil != Perfil.PLANIFICADOR) return false
+        mostrarErroresEquipo = true
+        if (erroresEquipo.hayErrores) return false
+        val guardado = repository.guardarEquipo(datosEquipo)
+        mensajeEquipo = if (guardado) "Equipo guardado en el dispositivo." else "No se pudo guardar el equipo. Intenta nuevamente."
+        return guardado
+    }
+
     var mensajeDemo by mutableStateOf("")
         private set
     fun cargarDemostracion() {
@@ -173,18 +209,21 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
         ordenObservacionConError = null
         ordenRespuestaConError = null
     }
-    val localesDemo: List<String> get() = CatalogoDemo.equiposPorLocal.keys.toList()
-    val equiposDemo: List<String> get() = CatalogoDemo.equiposPorLocal[datosCrear.local].orEmpty()
+    fun localesDisponibles(datos: Catastro): List<String> = datos.locales.map { it.nombre }
+    fun equiposDisponibles(datos: Catastro): List<String> {
+        val local = datos.locales.firstOrNull { it.nombre.equals(datosCrear.local, ignoreCase = true) } ?: return emptyList()
+        return datos.equipos.filter { it.localId == local.id }.map { it.nombre }
+    }
 
-    fun ultimaMantencion(): String? = ordenes.value.filter {
-        it.local == datosCrear.local && it.equipo == datosCrear.equipo && it.estado == EstadoOt.CERRADA
-    }.maxByOrNull { TiempoVisita.fecha(it.checkOut) ?: Long.MIN_VALUE }?.checkOut?.takeIf { it.isNotBlank() }
+    fun ultimaMantencion(datos: Catastro): String? {
+        val local = datos.locales.firstOrNull { it.nombre.equals(datosCrear.local, ignoreCase = true) } ?: return null
+        val equipo = datos.equipos.firstOrNull { it.localId == local.id && it.nombre.equals(datosCrear.equipo, ignoreCase = true) }
+        return equipo?.ultimaMantencionMillis?.let {
+            java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.forLanguageTag("es-CL")).format(java.util.Date(it))
+        }
+    }
 
-    fun ultimasMantenciones(lista: List<OrdenTrabajo>): List<OrdenTrabajo> = lista
-        .filter { it.estado == EstadoOt.CERRADA && TiempoVisita.fecha(it.checkOut) != null }
-        .groupBy { it.local to it.equipo }
-        .values.mapNotNull { grupo -> grupo.maxByOrNull { TiempoVisita.fecha(it.checkOut) ?: Long.MIN_VALUE } }
-        .sortedByDescending { TiempoVisita.fecha(it.checkOut) }.take(3)
+    fun ultimasMantenciones(lista: List<OrdenTrabajo>): List<OrdenTrabajo> = ResumenOrdenes.ultimasMantenciones(lista)
 
     fun cambiarLocal(valor: String) {
         if (valor != datosCrear.local) datosCrear = datosCrear.copy(local = valor, equipo = "")
@@ -296,7 +335,7 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
         )
 
     fun resumenOperativo(lista: List<OrdenTrabajo>) = ResumenOrdenes.operativo(lista)
-    fun catalogoEquipos(lista: List<OrdenTrabajo>) = ResumenOrdenes.equipos(lista, CatalogoDemo.equiposPorLocal)
+    fun catalogoEquipos(lista: List<OrdenTrabajo>, datos: Catastro) = ResumenOrdenes.equipos(lista, datos)
 
     fun filtrarOrdenes(lista: List<OrdenTrabajo>, filtro: FiltroOt): List<OrdenTrabajo> =
         lista.filter { orden ->
@@ -324,9 +363,11 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
             ?: hoy.firstOrNull { it.estado == EstadoOt.ACEPTADA || it.estado == EstadoOt.ASIGNADA }
     }
 
-    fun historialEquipo(orden: OrdenTrabajo): List<OrdenTrabajo> = ordenes.value.filter {
-        it.id != orden.id && it.local == orden.local && it.equipo == orden.equipo && it.checkOut.isNotBlank()
-    }.sortedByDescending { it.ultimaActualizacion }.take(3)
+    fun historialEquipo(orden: OrdenTrabajo): List<OrdenTrabajo> = ResumenOrdenes.historialEquipo(orden, ordenes.value)
+
+    fun eventosDeOrden(id: String, lista: List<EventoOt>): List<EventoOt> =
+        if (ordenesParaPerfil(ordenes.value, perfil).any { it.id == id }) lista.filter { it.otId == id }
+        else emptyList()
 
     fun hitosVisita(orden: OrdenTrabajo): List<Pair<String, String>> = buildList {
         if (orden.checkIn.isNotBlank()) add((if (orden.ubicacionCheckIn.isNotBlank()) "Llegada verificada" else "Llegada registrada sin ubicación") to orden.checkIn)

@@ -1,5 +1,9 @@
 package com.example.proyecto_acis.domain
 
+import com.example.proyecto_acis.data.Catastro
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.example.proyecto_acis.data.EstadoOt
 import com.example.proyecto_acis.data.OrdenTrabajo
 
@@ -18,9 +22,26 @@ data class EquipoResumen(
     val delCatalogoDemo: Boolean,
     val visitas: Int,
     val ultimaMantencion: String?,
+    val id: String = "",
+    val cliente: String = "",
+    val tipo: String = "",
+    val ubicacion: String = "",
+    val esExterior: Boolean = false,
 )
 
 object ResumenOrdenes {
+    fun historialEquipo(orden: OrdenTrabajo, lista: List<OrdenTrabajo>): List<OrdenTrabajo> = lista.filter {
+        val mismoEquipo = if (orden.equipoId != null && it.equipoId != null) orden.equipoId == it.equipoId
+            else orden.local == it.local && orden.equipo == it.equipo
+        it.id != orden.id && mismoEquipo && TiempoVisita.fecha(it.checkOut) != null
+    }.sortedByDescending { TiempoVisita.fecha(it.checkOut) }.take(3)
+
+    fun ultimasMantenciones(lista: List<OrdenTrabajo>): List<OrdenTrabajo> = lista
+        .filter { it.estado == EstadoOt.CERRADA && TiempoVisita.fecha(it.checkOut) != null }
+        .groupBy { it.equipoId?.let { id -> "id:$id" } ?: "texto:${it.local.length}:${it.local}${it.equipo}" }
+        .values.mapNotNull { grupo -> grupo.maxByOrNull { TiempoVisita.fecha(it.checkOut) ?: Long.MIN_VALUE } }
+        .sortedByDescending { TiempoVisita.fecha(it.checkOut) }.take(3)
+
     fun operativo(ordenes: List<OrdenTrabajo>): ResumenOperativo {
         val duraciones = ordenes.filter { it.checkOut.isNotBlank() }
             .mapNotNull { TiempoVisita.minutos(it.checkIn, it.checkOut) }
@@ -35,14 +56,17 @@ object ResumenOrdenes {
         )
     }
 
-    fun equipos(ordenes: List<OrdenTrabajo>, catalogo: Map<String, List<String>>): List<EquipoResumen> {
-        val demo = catalogo.flatMap { (local, equipos) -> equipos.map { local to it } }.toSet()
-        val registrados = ordenes.groupBy { it.local to it.equipo }
-        return (demo + registrados.keys).map { (local, equipo) ->
-            val visitas = registrados[local to equipo].orEmpty()
-            val ultima = visitas.filter { it.estado == EstadoOt.CERRADA && TiempoVisita.fecha(it.checkOut) != null }
-                .maxByOrNull { TiempoVisita.fecha(it.checkOut) ?: Long.MIN_VALUE }
-            EquipoResumen(local, equipo, (local to equipo) in demo, visitas.size, ultima?.checkOut)
+    fun equipos(ordenes: List<OrdenTrabajo>, catastro: Catastro): List<EquipoResumen> {
+        val formato = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-CL"))
+        val locales = catastro.locales.associateBy { it.id }
+        val clientes = catastro.clientes.associateBy { it.id }
+        return catastro.equipos.mapNotNull { equipo ->
+            val local = locales[equipo.localId] ?: return@mapNotNull null
+            val cliente = clientes[local.clienteId]
+            EquipoResumen(local.nombre, equipo.nombre, cliente?.esDemo == true,
+                ordenes.count { it.equipoId == equipo.id },
+                equipo.ultimaMantencionMillis?.let { formato.format(Date(it)) },
+                equipo.id, cliente?.nombre.orEmpty(), equipo.tipo, equipo.ubicacion, equipo.esExterior)
         }.sortedWith(compareBy<EquipoResumen> { it.local }.thenBy { it.nombre })
     }
 }

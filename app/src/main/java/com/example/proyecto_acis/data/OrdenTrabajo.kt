@@ -50,6 +50,7 @@ data class OrdenTrabajo(
     val fechaConformidad: String = "",
     val fotoEvidencia: String = "",
     val ultimaActualizacion: Long = 0L,
+    val equipoId: String? = null,
 ) {
     val fotosEvidencia: List<String>
         get() = fotoEvidencia.lines().filter { it.isNotBlank() && it == java.io.File(it).name && it.endsWith(".jpg") }.distinct()

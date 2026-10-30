@@ -57,6 +57,8 @@ import com.example.proyecto_acis.domain.TiempoVisita
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.collectAsState
+import com.example.proyecto_acis.ui.components.HistorialEventos
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -203,6 +205,7 @@ internal fun CrearOrden(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val ahora = remember { Calendar.getInstance() }
+    val catastro by viewModel.catastro.collectAsState()
     val datos = viewModel.datosCrear
     val errores = viewModel.erroresCrear
     var dia by rememberSaveable { mutableStateOf(ahora.get(Calendar.DAY_OF_MONTH)) }
@@ -228,12 +231,12 @@ internal fun CrearOrden(
         item { StepProgress(paso, 3) }
         if (paso == 1) item {
             SeccionFormulario("01 / LOCAL Y EQUIPO") {
-                Text("Catálogo de demostración. Puedes ingresar otro local o equipo.",
+                Text("Selecciona un local y su equipo. También puedes registrar otro.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SelectorConTexto(datos.local, viewModel::cambiarLocal, "Local", viewModel.localesDemo, errores.local)
-                SelectorConTexto(datos.equipo, viewModel::cambiarEquipo, "Equipo", viewModel.equiposDemo, errores.equipo,
+                SelectorConTexto(datos.local, viewModel::cambiarLocal, "Local", viewModel.localesDisponibles(catastro), errores.local)
+                SelectorConTexto(datos.equipo, viewModel::cambiarEquipo, "Equipo", viewModel.equiposDisponibles(catastro), errores.equipo,
                     clave = datos.local)
-                Text(viewModel.ultimaMantencion()?.let { "Última mantención registrada: $it" }
+                Text(viewModel.ultimaMantencion(catastro)?.let { "Última mantención registrada: $it" }
                     ?: "Sin mantenciones cerradas registradas para este equipo.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -471,6 +474,8 @@ internal fun DetalleOrden(
                         errorCamara = "No se pudo abrir la cámara."
                     }
     }
+    val todosLosEventos by viewModel.eventos.collectAsState()
+    val eventosOrden = viewModel.eventosDeOrden(orden.id, todosLosEventos)
     val formulario = viewModel.formularioDetalle(orden)
     val ultimoFormulario by rememberUpdatedState(formulario)
     DisposableEffect(orden.id, perfil) {
@@ -513,15 +518,10 @@ internal fun DetalleOrden(
             }
         }
         if (!escribiendoInforme || orden.estado != EstadoOt.EN_VISITA) {
-        if (perfil == Perfil.CLIENTE && viewModel.hitosVisita(orden).isNotEmpty()) item {
-            SeccionFormulario("Seguimiento de la visita") {
-                viewModel.hitosVisita(orden).forEach { (titulo, fecha) ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("●", color = MaterialTheme.colorScheme.primary)
-                        CampoDetalle(titulo, fecha)
-                    }
-                }
-            }
+        if (eventosOrden.isNotEmpty() || viewModel.hitosVisita(orden).isNotEmpty()) item {
+            HistorialEventos(eventosOrden, hitosAnteriores =
+                if (eventosOrden.isEmpty()) viewModel.hitosVisita(orden)
+                else emptyList())
         }
         if (minutosEnSitio != null) item {
             Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small,
@@ -890,7 +890,7 @@ private fun SelectorConTexto(valor: String, onCambio: (String) -> Unit, etiqueta
 }
 
 @Composable
-private fun CampoFormulario(
+internal fun CampoFormulario(
     valor: String,
     onCambio: (String) -> Unit,
     etiqueta: String,
@@ -932,7 +932,7 @@ private fun capitalizarOraciones(texto: String): String = buildString {
 }
 
 @Composable
-private fun ErrorSeleccion(mensaje: String) {
+internal fun ErrorSeleccion(mensaje: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Icon(painterResource(android.R.drawable.ic_dialog_alert), contentDescription = null,
             tint = MaterialTheme.colorScheme.error)

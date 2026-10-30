@@ -36,6 +36,7 @@ private object RutasAcis {
     const val REGISTROS = "registros"
     const val PERFIL = "perfil"
     const val EQUIPOS = "equipos"
+    const val EQUIPO = "equipo/{equipoId}"
     const val REPORTES = "reportes"
     const val ASIGNAR = "asignar/{ordenId}"
     const val CREAR = "crear"
@@ -50,6 +51,7 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
     val entrada by nav.currentBackStackEntryAsState()
     val ruta = entrada?.destination?.route ?: RutasAcis.ACCESO
     val ordenes by viewModel.ordenes.collectAsState()
+    val catastro by viewModel.catastro.collectAsState()
     val perfil = viewModel.perfil
     val visibles = viewModel.ordenesParaPerfil(ordenes, perfil)
     val enAcceso = ruta == RutasAcis.ACCESO
@@ -138,9 +140,20 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
                     onEditar = { if (viewModel.prepararEdicion(orden.id)) nav.navigate("editar/${orden.id}") })
             }
             composable(RutasAcis.EQUIPOS) {
-                if (perfil == Perfil.PLANIFICADOR) EquiposPlanificador(viewModel.catalogoEquipos(visibles)) { local, equipo ->
-                    viewModel.prepararCreacion(local, equipo)
-                    nav.navigate(RutasAcis.CREAR)
+                if (perfil == Perfil.PLANIFICADOR) EquiposPlanificador(viewModel.catalogoEquipos(visibles, catastro),
+                    onCrear = { local, equipo -> viewModel.prepararCreacion(local, equipo); nav.navigate(RutasAcis.CREAR) },
+                    onNuevo = { if (viewModel.prepararEquipo()) nav.navigate("equipo/nuevo") },
+                    onEditar = { id -> if (viewModel.prepararEquipo(id)) nav.navigate("equipo/$id") },
+                    mensaje = viewModel.mensajeEquipo)
+            }
+            composable(RutasAcis.EQUIPO) { destino ->
+                val id = destino.arguments?.getString("equipoId").orEmpty()
+                if (perfil == Perfil.PLANIFICADOR) {
+                    LaunchedEffect(id) {
+                        if (id != "nuevo" && viewModel.datosEquipo.id != id) viewModel.prepararEquipo(id)
+                    }
+                    if (id == "nuevo" || viewModel.datosEquipo.id == id) FormularioEquipo(viewModel) { nav.popBackStack() }
+                    else Text("El equipo no está disponible.", Modifier.padding(20.dp))
                 }
             }
             composable(RutasAcis.REPORTES) {
@@ -168,7 +181,7 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
                     onClick = { irPrincipal(RutasAcis.REGISTROS) },
                     icon = { Icon(painterResource(R.drawable.ic_acis_records), null) }, label = { Text(when (perfil) { Perfil.PLANIFICADOR -> "Órdenes"; Perfil.TECNICO -> "Historial"; Perfil.CLIENTE -> "Servicios" }) })
                 if (perfil == Perfil.PLANIFICADOR) {
-                    NavigationBarItem(selected = ruta == RutasAcis.EQUIPOS,
+                    NavigationBarItem(selected = ruta == RutasAcis.EQUIPOS || ruta == RutasAcis.EQUIPO,
                         onClick = { irPrincipal(RutasAcis.EQUIPOS) },
                         icon = { Icon(painterResource(R.drawable.ic_acis_equipment), null) }, label = { Text("Equipos") })
                     NavigationBarItem(selected = ruta == RutasAcis.REPORTES,

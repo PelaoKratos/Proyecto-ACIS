@@ -51,7 +51,7 @@ Los datos y las fotos se guardan solo en el dispositivo. Cambiar de teléfono o 
 - Jornada del técnico con visitas del día ordenadas por hora; los otros trabajos se consultan en Registros.
 - Acceso directo del cliente al informe pendiente. El cliente ve horas de llegada y salida, sin coordenadas.
 
-La fase 1 sigue en desarrollo. El informe rápido y las evidencias múltiples ya están implementados; el cierre requiere revisar los puntos restantes del plan. La app conserva el almacenamiento local. La asignación permite elegir Técnico demo o Brian Bravo y muestra las visitas abiertas de ese día. Al entrar como Técnico se elige una identidad de demostración y solo se muestran sus órdenes. Esta elección no equivale a autenticación.
+El avance de la Fase 1 quedó guardado en el commit 7627a99. El informe rápido y las evidencias múltiples están implementados. La app conserva el almacenamiento local. La asignación permite elegir Técnico demo o Brian Bravo y muestra las visitas abiertas de ese día. Al entrar como Técnico se elige una identidad de demostración y solo se muestran sus órdenes. Esta elección no equivale a autenticación.
 
 ### Informe de visita
 
@@ -82,3 +82,27 @@ El inicio de Cliente muestra hasta tres equipos con su última visita cerrada, c
 El planificador dispone de Equipos (consulta del catálogo demo y equipos de las OT, con creación de orden precompletada) y Reportes (totales, estados y duración media de visitas con horarios válidos). El acceso a Perfil del planificador está en la barra superior. Las otras funciones de Reportes, como SLA, se mantienen para la fase 3.
 
 En una instalación sin órdenes, Perfil del planificador permite cargar seis OT de demostración tras una confirmación. Los ejemplos abarcan seis estados y cinco equipos; no incluyen fotos ni ubicaciones inventadas. La carga es opcional, transaccional y no reemplaza registros existentes. Las acciones Foto, Materiales y Nota abren la cámara o la sección correspondiente del informe.
+
+## Fase 2: historial de eventos
+
+SQLite pasa de versión 4 a 5 incorporando la tabla eventos_ot. Las órdenes y fotos anteriores se conservan. Cada orden existente recibe un registro de incorporación con su estado y los horarios que ya estaban disponibles; no se reconstruyen fechas desconocidas.
+
+Desde esta versión se registran creación, asignación, edición, aceptación, rechazo, postergación, llegada, salida e informe, observación, respuesta y aprobación. Los eventos guardan fecha, rol, actor de demostración y detalle. La modificación de la OT y el evento se escriben en una misma transacción. El repositorio aplica reglas centralizadas de transición de estado. Al eliminar una orden se elimina también su historial asociado.
+
+El detalle presenta los últimos cinco eventos y permite desplegar el historial completo. Las coordenadas no se incluyen en los textos de eventos. Los borradores y cambios de fotos conservan su persistencia, sin generar un evento de transición de estado.
+
+Para revisar: actualizar la app conservando datos, abrir una OT anterior y comprobar su registro previo; crear una nueva, asignar, aceptar, registrar llegada, enviar informe, observar, responder y aprobar. Cerrar y abrir la app para comprobar el historial.
+
+Las pruebas unitarias cubren el recorrido permitido entre estados. HistorialDbTest utiliza bases y preferencias temporales con nombres únicos para comprobar las migraciones 4→6 y 5→6, reversión por fallo de evento, estado anterior incorrecto, persistencia, borrado asociado y recorrido completo. Las pruebas de dispositivo no llegaron a ejecutarse en el teléfono conectado: el sistema rechazó la instalación de la APK de prueba. Se pueden ejecutar con connectedDebugAndroidTest en un dispositivo o emulador que admita instalarla.
+
+### Catastro persistente
+
+La versión 6 agrega clientes, locales y equipos relacionados mediante identificadores. Se incorporan dos clientes, tres locales y cinco equipos de demostración. Los equipos de las OT anteriores se vinculan sin borrar sus textos históricos; los locales desconocidos quedan bajo Cliente por identificar. Los registros incompletos conservan su contenido aunque todavía no puedan vincularse a un equipo.
+
+Los selectores de OT leen SQLite y filtran equipos por local. El ingreso libre sigue disponible y registra un equipo/local cuando corresponde. Equipos permite crear y editar nombre, tipo, ubicación dentro del local y condición de exterior. El formulario valida campos obligatorios y nombres repetidos en un mismo local. Un equipo con órdenes conserva su local; se puede cambiar el nombre sin alterar las OT históricas.
+
+Aprobar una OT actualiza la última mantención del equipo con la hora de salida, dentro de la misma transacción del cierre y su evento. Una mantención más antigua no reemplaza una fecha más reciente.
+
+Para revisar: actualizar conservando datos, abrir Equipos, agregar un equipo, comprobar sus errores y editarlo. Crear una OT para él y completar su recorrido hasta la aprobación. Comprobar la última mantención, las fotos y el historial anterior. La migración y sus relaciones todavía requieren ejecutar HistorialDbTest en Android; el teléfono conectado había bloqueado instalar las pruebas. La compilación de pruebas y la verificación local del DDL no sustituyen esa ejecución.
+
+Esta parte incorpora las entidades y el formulario de equipos. La administración de datos de clientes y direcciones de locales continúa pendiente; sus datos actuales se conservan en el catálogo.
