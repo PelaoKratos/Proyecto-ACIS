@@ -14,9 +14,6 @@ import com.example.proyecto_acis.data.OrdenesRepository
 import com.example.proyecto_acis.data.Perfil
 import com.example.proyecto_acis.data.PrioridadOt
 import com.example.proyecto_acis.data.TipoOt
-import com.example.proyecto_acis.domain.DatosEquipo
-import com.example.proyecto_acis.domain.ErroresEquipo
-import com.example.proyecto_acis.domain.ValidadorEquipo
 import com.example.proyecto_acis.domain.ResumenOrdenes
 import com.example.proyecto_acis.domain.DatosCrearOt
 import com.example.proyecto_acis.domain.ErroresCrearOt
@@ -30,40 +27,12 @@ import com.example.proyecto_acis.domain.MaterialesInforme
 enum class FiltroOt { TODAS, SIN_ASIGNAR, EN_VISITA, OBSERVADAS }
 
 class OrdenesViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = OrdenesRepository(application)
+    private val dependencias = application as com.example.proyecto_acis.AcisApplication
+    private val repository = dependencias.repository
+    private val sesion = dependencias.sesion
     val ordenes = repository.ordenes
     val eventos = repository.eventos
     val catastro = repository.catastro
-    var datosEquipo by mutableStateOf(DatosEquipo())
-        private set
-    private var mostrarErroresEquipo by mutableStateOf(false)
-    var mensajeEquipo by mutableStateOf("")
-        private set
-    val erroresEquipo: ErroresEquipo get() = if (mostrarErroresEquipo)
-        ValidadorEquipo.validar(datosEquipo, catastro.value, ordenes.value.mapNotNull { it.equipoId }.toSet()) else ErroresEquipo()
-
-    fun prepararEquipo(id: String? = null): Boolean {
-        if (perfil != Perfil.PLANIFICADOR) return false
-        val equipo = id?.let { elegido -> catastro.value.equipos.firstOrNull { it.id == elegido } ?: return false }
-        datosEquipo = equipo?.let { DatosEquipo(it.id, it.localId, it.nombre, it.tipo, it.ubicacion, it.esExterior) } ?: DatosEquipo()
-        mostrarErroresEquipo = false
-        mensajeEquipo = ""
-        return true
-    }
-    fun cambiarLocalEquipo(id: String) { datosEquipo = datosEquipo.copy(localId = id) }
-    fun cambiarNombreEquipo(valor: String) { datosEquipo = datosEquipo.copy(nombre = valor) }
-    fun cambiarTipoEquipo(valor: String) { datosEquipo = datosEquipo.copy(tipo = valor) }
-    fun cambiarUbicacionEquipo(valor: String) { datosEquipo = datosEquipo.copy(ubicacion = valor) }
-    fun cambiarExteriorEquipo(valor: Boolean) { datosEquipo = datosEquipo.copy(esExterior = valor) }
-    fun guardarEquipo(): Boolean {
-        if (perfil != Perfil.PLANIFICADOR) return false
-        mostrarErroresEquipo = true
-        if (erroresEquipo.hayErrores) return false
-        val guardado = repository.guardarEquipo(datosEquipo)
-        mensajeEquipo = if (guardado) "Equipo guardado en el dispositivo." else "No se pudo guardar el equipo. Intenta nuevamente."
-        return guardado
-    }
-
     var mensajeDemo by mutableStateOf("")
         private set
     fun cargarDemostracion() {
@@ -72,13 +41,12 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
             else "No se cargaron ejemplos. Revisa que no existan órdenes y vuelve a intentar."
     }
     val tecnicos = OrdenesRepository.TECNICOS
-    var tecnicoActual by mutableStateOf(OrdenesRepository.TECNICO_DEMO)
-        private set
+    val tecnicoActual get() = sesion.tecnico
 
     fun seleccionarTecnico(nombre: String) {
         if (nombre in tecnicos) {
             seleccionarPerfil(Perfil.TECNICO)
-            tecnicoActual = nombre
+            sesion.tecnico = nombre
         }
     }
 
@@ -86,8 +54,7 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
         it.tecnico == nombre && it.fechaProgramada.substringBefore(" ") == fecha.substringBefore(" ") && it.estado != EstadoOt.CERRADA
     }
 
-    var perfil by mutableStateOf(Perfil.PLANIFICADOR)
-        private set
+    val perfil get() = sesion.perfil
     var datosCrear by mutableStateOf(DatosCrearOt())
         private set
     var errorGuardarCrear by mutableStateOf(false)
@@ -201,7 +168,7 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
 
     fun seleccionarPerfil(nuevo: Perfil) {
         val pendientes = if (perfil == Perfil.TECNICO) formulariosDetalle.filter { (id, datos) -> !autoguardar(id, datos) } else emptyMap()
-        perfil = nuevo
+        sesion.perfil = nuevo
         formulariosDetalle.clear()
         formulariosDetalle.putAll(pendientes)
         mensajeDetalle = null

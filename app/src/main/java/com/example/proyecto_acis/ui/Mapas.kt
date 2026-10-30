@@ -15,3 +15,8 @@ fun buscarLocalEnMapa(context: Context, local: String): Boolean {
         false
     }
 }
+
+fun abrirUbicacionVisita(context: Context, ubicacion: String): Boolean {
+    val coordenadas = com.example.proyecto_acis.domain.ValidadorCatastro.leerUbicacion(ubicacion) ?: return false
+    return buscarLocalEnMapa(context, "${coordenadas.first},${coordenadas.second}")
+}

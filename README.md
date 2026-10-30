@@ -69,7 +69,7 @@ La creación incluye selectores de demostración con tres locales y cinco equipo
 
 La barra inferior adapta sus nombres al rol: Jornada e Historial para Técnico, Servicios para Cliente y Órdenes para Planificador. Perfil muestra el acceso actual y permite cambiarlo. Al crear una OT se abre la asignación de técnico, que también puede posponerse. Las tarjetas de Jornada permiten aceptar o rechazar órdenes asignadas; el rechazo pide confirmación y una orden aceptada permite abrir el registro de llegada.
 
-La jornada destaca la visita activa o la siguiente pendiente del día. Buscar local en Maps abre una búsqueda por el nombre guardado; todavía no existe una dirección precisa de catastro para calcular una ruta. El técnico puede consultar hasta tres visitas anteriores del mismo local y equipo. Rechazar el permiso de ubicación no inicia la visita automáticamente: se puede reintentar o elegir Iniciar sin ubicación. Esta última opción inicia sin conservar una ubicación guardada previamente.
+La jornada destaca la visita activa o la siguiente pendiente del día. Maps utiliza la ubicación aproximada del local si se registró, luego su dirección y, si ambas faltan, busca por nombre. El técnico puede consultar hasta tres visitas anteriores del mismo local y equipo. Rechazar el permiso de ubicación no inicia la visita automáticamente: se puede reintentar o elegir Iniciar sin ubicación. Esta última opción inicia sin conservar una ubicación guardada previamente.
 
 La visita en curso permite abrir Escribir informe. El informe muestra diagnóstico, actividades, materiales y evidencias; Volver a la visita guarda el borrador. Las fechas se validan en la capa de lógica y la postergación requiere una fecha y hora futuras. Los errores de campo y los colores de estado incluyen transiciones visuales.
 
@@ -93,7 +93,7 @@ El detalle presenta los últimos cinco eventos y permite desplegar el historial 
 
 Para revisar: actualizar la app conservando datos, abrir una OT anterior y comprobar su registro previo; crear una nueva, asignar, aceptar, registrar llegada, enviar informe, observar, responder y aprobar. Cerrar y abrir la app para comprobar el historial.
 
-Las pruebas unitarias cubren el recorrido permitido entre estados. HistorialDbTest utiliza bases y preferencias temporales con nombres únicos para comprobar las migraciones 4→6 y 5→6, reversión por fallo de evento, estado anterior incorrecto, persistencia, borrado asociado y recorrido completo. Las pruebas de dispositivo no llegaron a ejecutarse en el teléfono conectado: el sistema rechazó la instalación de la APK de prueba. Se pueden ejecutar con connectedDebugAndroidTest en un dispositivo o emulador que admita instalarla.
+Las pruebas unitarias cubren el recorrido permitido entre estados. HistorialDbTest utiliza bases y preferencias temporales con nombres únicos para comprobar las migraciones 4→6 y 5→6, reversión por fallo de evento, estado anterior incorrecto, persistencia, borrado asociado y recorrido completo. El teléfono había rechazado instalar la APK de prueba. El 30/10/2026 se ejecutaron correctamente en el emulador Medium_Phone_API_37.0 (Android 17): 10 pruebas Android, sin fallos, incluidas las migraciones y la persistencia del catastro. Se utilizan bases y preferencias temporales, sin modificar la base de uso de la aplicación.
 
 ### Catastro persistente
 
@@ -103,6 +103,15 @@ Los selectores de OT leen SQLite y filtran equipos por local. El ingreso libre s
 
 Aprobar una OT actualiza la última mantención del equipo con la hora de salida, dentro de la misma transacción del cierre y su evento. Una mantención más antigua no reemplaza una fecha más reciente.
 
-Para revisar: actualizar conservando datos, abrir Equipos, agregar un equipo, comprobar sus errores y editarlo. Crear una OT para él y completar su recorrido hasta la aprobación. Comprobar la última mantención, las fotos y el historial anterior. La migración y sus relaciones todavía requieren ejecutar HistorialDbTest en Android; el teléfono conectado había bloqueado instalar las pruebas. La compilación de pruebas y la verificación local del DDL no sustituyen esa ejecución.
+Para revisar: actualizar conservando datos, abrir Equipos, agregar un equipo, comprobar sus errores y editarlo. Crear una OT para él y completar su recorrido hasta la aprobación. Comprobar la última mantención, las fotos y el historial anterior. HistorialDbTest ya comprobó la migración y sus relaciones en el emulador. Queda revisar en el teléfono el teclado, los permisos, cámara y apertura de Maps con los datos reales del equipo.
 
-Esta parte incorpora las entidades y el formulario de equipos. La administración de datos de clientes y direcciones de locales continúa pendiente; sus datos actuales se conservan en el catálogo.
+Desde Equipos también se pueden administrar Clientes y Locales. Ambos permiten crear y editar, con validación por campo y nombres únicos. Cada local pertenece a un cliente; los importados bajo Cliente por identificar deben asociarse al cliente real al editarlos. No se permite renombrar ese registro reservado.
+
+La dirección y la ubicación del local son opcionales. Usar mi ubicación para este local solicita permiso aproximado y solo debe utilizarse estando en el lugar. Si se rechaza el permiso o no se obtiene una posición, se puede guardar sin ella. Quitar ubicación elimina ambas coordenadas al guardar; no se muestran números GPS en las pantallas.
+
+Cómo llegar al local está disponible en el detalle para planificador y técnico, además de la jornada y el listado de locales. Utiliza el punto guardado, la dirección o el nombre, en ese orden. Se resuelve el local mediante el identificador del equipo, por lo que un cambio de nombre no pierde la relación. La ubicación de llegada del técnico se conserva separada y no se utiliza como destino.
+
+AcisApplication comparte una sola instancia del repositorio y la sesión demo. OrdenesViewModel conserva el flujo de OT y CatastroViewModel administra los formularios de clientes, locales y equipos. Las reglas de nombres, asociaciones y coordenadas están en validadores puros de domain, con pruebas unitarias. No se agregaron dependencias ni se cambió la versión de la base de datos en este bloque.
+
+
+Verificación del bloque de clientes y locales (30/10/2026): 22 pruebas unitarias y 10 pruebas Android sin fallos. Se abrió la app en el emulador y se comprobó navegación a Clientes y Locales, error por cliente vacío, creación de cliente con confirmación y errores por cliente/nombre al guardar un local incompleto. La captura de ubicación y el salto a Maps requieren revisión manual en el teléfono. La paleta oscura y el acento lima se mantienen.

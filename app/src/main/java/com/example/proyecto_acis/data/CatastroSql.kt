@@ -3,6 +3,9 @@ package com.example.proyecto_acis.data
 import android.content.ContentValues
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
+import com.example.proyecto_acis.domain.DatosCliente
+import com.example.proyecto_acis.domain.DatosLocal
+import com.example.proyecto_acis.domain.ValidadorCatastro
 import com.example.proyecto_acis.domain.DatosEquipo
 import com.example.proyecto_acis.domain.ValidadorEquipo
 import com.example.proyecto_acis.domain.TiempoVisita
@@ -98,6 +101,27 @@ internal object CatastroSql {
         val marca = TiempoVisita.fecha(fecha) ?: return
         db.update("equipos", ContentValues().apply { put("ultimaMantencion", marca) },
             "id = ? AND (ultimaMantencion IS NULL OR ultimaMantencion < ?)", arrayOf(equipoId, marca.toString()))
+    }
+
+    fun guardarCliente(db: SQLiteDatabase, datos: DatosCliente): Boolean {
+        if (ValidadorCatastro.cliente(datos, leer(db)) != null) return false
+        val valores = ContentValues().apply { put("nombre", datos.nombre.trim()) }
+        return if (datos.id == null) {
+            valores.put("id", UUID.randomUUID().toString())
+            db.insertOrThrow("clientes", null, valores) != -1L
+        } else db.update("clientes", valores, "id = ?", arrayOf(datos.id)) == 1
+    }
+
+    fun guardarLocal(db: SQLiteDatabase, datos: DatosLocal): Boolean {
+        if (ValidadorCatastro.local(datos, leer(db)).hayErrores) return false
+        val valores = ContentValues().apply {
+            put("clienteId", datos.clienteId); put("nombre", datos.nombre.trim()); put("direccion", datos.direccion.trim())
+            put("latitud", datos.latitud); put("longitud", datos.longitud)
+        }
+        return if (datos.id == null) {
+            valores.put("id", UUID.randomUUID().toString())
+            db.insertOrThrow("locales", null, valores) != -1L
+        } else db.update("locales", valores, "id = ?", arrayOf(datos.id)) == 1
     }
 
     fun guardarEquipo(db: SQLiteDatabase, datos: DatosEquipo): Boolean {

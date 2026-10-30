@@ -214,4 +214,30 @@ class HistorialDbTest {
         assertEquals(com.example.proyecto_acis.domain.TiempoVisita.fecha(actual.checkOut),
             db.leerCatastro().equipos.first { it.id == actual.equipoId }.ultimaMantencionMillis)
     }
+    @Test fun clientesYLocalesPersistenSinCambiarLosTextosHistoricos() {
+        val db = base()
+        val repo = OrdenesRepository(context, db, "${nombre}_preferencias")
+        assertTrue(repo.guardarCliente(com.example.proyecto_acis.domain.DatosCliente(nombre = "Cliente nuevo")))
+        val cliente = repo.catastro.value.clientes.first { it.nombre == "Cliente nuevo" }
+        assertFalse(repo.guardarCliente(com.example.proyecto_acis.domain.DatosCliente(nombre = " cliente nuevo ")))
+        assertTrue(repo.guardarLocal(com.example.proyecto_acis.domain.DatosLocal(
+            clienteId = cliente.id, nombre = "Local nuevo", direccion = "Av. Prat 120", latitud = -36.82, longitud = -73.05)))
+        val local = repo.catastro.value.locales.first { it.nombre == "Local nuevo" }
+        val id = repo.crear("Local nuevo", "Equipo nuevo", "Revisar", "30/10/2026 10:00", TipoOt.PREVENTIVA, PrioridadOt.MEDIA)!!
+        val original = repo.ordenes.value.first { it.id == id }
+        assertTrue(repo.guardarCliente(com.example.proyecto_acis.domain.DatosCliente(cliente.id, "Cliente actualizado")))
+        assertTrue(repo.guardarLocal(com.example.proyecto_acis.domain.DatosLocal(
+            local.id, cliente.id, "Local actualizado", "Dirección nueva")))
+        val actual = repo.ordenes.value.first { it.id == id }
+        assertEquals(original.equipoId, actual.equipoId)
+        assertEquals("Local nuevo", actual.local)
+        assertEquals("Dirección nueva", com.example.proyecto_acis.domain.DestinoMapa.consulta(actual, repo.catastro.value))
+        assertNull(repo.catastro.value.locales.first { it.id == local.id }.latitud)
+        db.close()
+        val guardado = base().leerCatastro()
+        assertEquals("Cliente actualizado", guardado.clientes.first { it.id == cliente.id }.nombre)
+        assertEquals("Local actualizado", guardado.locales.first { it.id == local.id }.nombre)
+        assertNull(guardado.locales.first { it.id == local.id }.longitud)
+    }
+
 }

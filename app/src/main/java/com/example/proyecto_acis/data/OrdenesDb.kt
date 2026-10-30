@@ -1,5 +1,7 @@
 package com.example.proyecto_acis.data
 
+import com.example.proyecto_acis.domain.DatosCliente
+import com.example.proyecto_acis.domain.DatosLocal
 import com.example.proyecto_acis.domain.DatosEquipo
 import android.content.ContentValues
 import android.content.Context
@@ -158,6 +160,9 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
     }
 
     fun leerCatastro(): Catastro = CatastroSql.leer(readableDatabase)
+
+    fun guardarCliente(datos: DatosCliente): Boolean = transaccion { db -> CatastroSql.guardarCliente(db, datos) }
+    fun guardarLocal(datos: DatosLocal): Boolean = transaccion { db -> CatastroSql.guardarLocal(db, datos) }
 
     fun guardarEquipo(datos: DatosEquipo): Boolean = transaccion { db -> CatastroSql.guardarEquipo(db, datos) }
 

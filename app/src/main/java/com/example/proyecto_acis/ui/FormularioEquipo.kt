@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun FormularioEquipo(viewModel: OrdenesViewModel, onVolver: () -> Unit) {
+internal fun FormularioEquipo(viewModel: CatastroViewModel, onVolver: () -> Unit) {
     val focus = LocalFocusManager.current
     val teclado = LocalSoftwareKeyboardController.current
     val catastro by viewModel.catastro.collectAsState()

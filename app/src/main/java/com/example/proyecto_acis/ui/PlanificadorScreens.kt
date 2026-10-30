@@ -15,13 +15,19 @@ import java.util.Locale
 
 @Composable
 internal fun EquiposPlanificador(equipos: List<EquipoResumen>, onCrear: (String, String) -> Unit,
-    onNuevo: () -> Unit, onEditar: (String) -> Unit, mensaje: String = "") {
+    onNuevo: () -> Unit, onEditar: (String) -> Unit, onClientes: () -> Unit, onLocales: () -> Unit, mensaje: String = "") {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text("Equipos", style = MaterialTheme.typography.headlineMedium)
             Text("Clientes, locales y equipos guardados en el dispositivo.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = onClientes, modifier = Modifier.weight(1f)) { Text("Clientes") }
+                OutlinedButton(onClick = onLocales, modifier = Modifier.weight(1f)) { Text("Locales") }
+            }
         }
         item { Button(onClick = onNuevo, modifier = Modifier.fillMaxWidth()) { Text("Agregar equipo") } }
         if (mensaje.isNotBlank()) item { Text(mensaje, color = MaterialTheme.colorScheme.primary) }

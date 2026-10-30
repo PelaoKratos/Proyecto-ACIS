@@ -8,6 +8,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.proyecto_acis.domain.DatosCliente
+import com.example.proyecto_acis.domain.DatosLocal
+import com.example.proyecto_acis.domain.ValidadorCatastro
 import com.example.proyecto_acis.domain.DatosEquipo
 import com.example.proyecto_acis.domain.ValidadorEquipo
 import com.example.proyecto_acis.domain.DatosCrearOt
@@ -27,6 +30,18 @@ class OrdenesRepository(
     val eventos = _eventos.asStateFlow()
     private val _catastro = MutableStateFlow(database.leerCatastro())
     val catastro = _catastro.asStateFlow()
+
+    fun guardarCliente(datos: DatosCliente): Boolean {
+        if (ValidadorCatastro.cliente(datos, _catastro.value) != null || !database.guardarCliente(datos)) return false
+        recargarDatos()
+        return true
+    }
+
+    fun guardarLocal(datos: DatosLocal): Boolean {
+        if (ValidadorCatastro.local(datos, _catastro.value).hayErrores || !database.guardarLocal(datos)) return false
+        recargarDatos()
+        return true
+    }
 
     fun guardarEquipo(datos: DatosEquipo): Boolean {
         val vinculados = _ordenes.value.mapNotNull { it.equipoId }.toSet()

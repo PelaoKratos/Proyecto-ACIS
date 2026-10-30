@@ -37,6 +37,10 @@ private object RutasAcis {
     const val PERFIL = "perfil"
     const val EQUIPOS = "equipos"
     const val EQUIPO = "equipo/{equipoId}"
+    const val CLIENTES = "clientes"
+    const val LOCALES = "locales"
+    const val CLIENTE = "cliente/{clienteId}"
+    const val LOCAL = "local/{localId}"
     const val REPORTES = "reportes"
     const val ASIGNAR = "asignar/{ordenId}"
     const val CREAR = "crear"
@@ -46,7 +50,7 @@ private object RutasAcis {
 }
 
 @Composable
-fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
+fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, modifier: Modifier = Modifier) {
     val nav = rememberNavController()
     val entrada by nav.currentBackStackEntryAsState()
     val ruta = entrada?.destination?.route ?: RutasAcis.ACCESO
@@ -142,18 +146,52 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
             composable(RutasAcis.EQUIPOS) {
                 if (perfil == Perfil.PLANIFICADOR) EquiposPlanificador(viewModel.catalogoEquipos(visibles, catastro),
                     onCrear = { local, equipo -> viewModel.prepararCreacion(local, equipo); nav.navigate(RutasAcis.CREAR) },
-                    onNuevo = { if (viewModel.prepararEquipo()) nav.navigate("equipo/nuevo") },
-                    onEditar = { id -> if (viewModel.prepararEquipo(id)) nav.navigate("equipo/$id") },
-                    mensaje = viewModel.mensajeEquipo)
+                    onNuevo = { if (catastroViewModel.prepararEquipo()) nav.navigate("equipo/nuevo") },
+                    onEditar = { id -> if (catastroViewModel.prepararEquipo(id)) nav.navigate("equipo/$id") },
+                    onClientes = { nav.navigate(RutasAcis.CLIENTES) },
+                    onLocales = { nav.navigate(RutasAcis.LOCALES) },
+                    mensaje = catastroViewModel.mensajeEquipo)
             }
             composable(RutasAcis.EQUIPO) { destino ->
                 val id = destino.arguments?.getString("equipoId").orEmpty()
                 if (perfil == Perfil.PLANIFICADOR) {
                     LaunchedEffect(id) {
-                        if (id != "nuevo" && viewModel.datosEquipo.id != id) viewModel.prepararEquipo(id)
+                        if (id != "nuevo" && catastroViewModel.datosEquipo.id != id) catastroViewModel.prepararEquipo(id)
                     }
-                    if (id == "nuevo" || viewModel.datosEquipo.id == id) FormularioEquipo(viewModel) { nav.popBackStack() }
+                    if (id == "nuevo" || catastroViewModel.datosEquipo.id == id) FormularioEquipo(catastroViewModel) { nav.popBackStack() }
                     else Text("El equipo no está disponible.", Modifier.padding(20.dp))
+                }
+            }
+            composable(RutasAcis.CLIENTES) {
+                if (perfil == Perfil.PLANIFICADOR) ListaClientes(catastro,
+                    onNuevo = { if (catastroViewModel.prepararCliente()) nav.navigate("cliente/nuevo") },
+                    onEditar = { id -> if (catastroViewModel.prepararCliente(id)) nav.navigate("cliente/$id") },
+                    mensaje = catastroViewModel.mensajeCliente)
+            }
+            composable(RutasAcis.LOCALES) {
+                if (perfil == Perfil.PLANIFICADOR) ListaLocales(catastro,
+                    onNuevo = { if (catastroViewModel.prepararLocal()) nav.navigate("local/nuevo") },
+                    onEditar = { id -> if (catastroViewModel.prepararLocal(id)) nav.navigate("local/$id") },
+                    mensaje = catastroViewModel.mensajeLocal)
+            }
+            composable(RutasAcis.CLIENTE) { destino ->
+                val id = destino.arguments?.getString("clienteId").orEmpty()
+                if (perfil == Perfil.PLANIFICADOR) {
+                    LaunchedEffect(id) {
+                        if (id != "nuevo" && catastroViewModel.datosCliente.id != id) catastroViewModel.prepararCliente(id)
+                    }
+                    if (id == "nuevo" || catastroViewModel.datosCliente.id == id) FormularioCliente(catastroViewModel) { nav.popBackStack() }
+                    else Text("El cliente no está disponible.", Modifier.padding(20.dp))
+                }
+            }
+            composable(RutasAcis.LOCAL) { destino ->
+                val id = destino.arguments?.getString("localId").orEmpty()
+                if (perfil == Perfil.PLANIFICADOR) {
+                    LaunchedEffect(id) {
+                        if (id != "nuevo" && catastroViewModel.datosLocal.id != id) catastroViewModel.prepararLocal(id)
+                    }
+                    if (id == "nuevo" || catastroViewModel.datosLocal.id == id) FormularioLocal(catastroViewModel) { nav.popBackStack() }
+                    else Text("El local no está disponible.", Modifier.padding(20.dp))
                 }
             }
             composable(RutasAcis.REPORTES) {
@@ -181,7 +219,7 @@ fun AcisApp(viewModel: OrdenesViewModel, modifier: Modifier = Modifier) {
                     onClick = { irPrincipal(RutasAcis.REGISTROS) },
                     icon = { Icon(painterResource(R.drawable.ic_acis_records), null) }, label = { Text(when (perfil) { Perfil.PLANIFICADOR -> "Órdenes"; Perfil.TECNICO -> "Historial"; Perfil.CLIENTE -> "Servicios" }) })
                 if (perfil == Perfil.PLANIFICADOR) {
-                    NavigationBarItem(selected = ruta == RutasAcis.EQUIPOS || ruta == RutasAcis.EQUIPO,
+                    NavigationBarItem(selected = ruta in listOf(RutasAcis.EQUIPOS, RutasAcis.EQUIPO, RutasAcis.CLIENTES, RutasAcis.LOCALES, RutasAcis.CLIENTE, RutasAcis.LOCAL),
                         onClick = { irPrincipal(RutasAcis.EQUIPOS) },
                         icon = { Icon(painterResource(R.drawable.ic_acis_equipment), null) }, label = { Text("Equipos") })
                     NavigationBarItem(selected = ruta == RutasAcis.REPORTES,
@@ -333,6 +371,7 @@ private fun SeleccionPerfil(onSeleccionar: (Perfil) -> Unit) {
 @Composable
 private fun InicioPerfil(perfil: Perfil, ordenes: List<OrdenTrabajo>, viewModel: OrdenesViewModel, onRegistros: () -> Unit,
     onCrear: () -> Unit, onSeleccionar: (String) -> Unit) {
+    val catastro by viewModel.catastro.collectAsState()
     val context = LocalContext.current
     val siguienteVisita = viewModel.siguienteVisita(ordenes)
     var errorMapa by rememberSaveable { mutableStateOf("") }
@@ -490,9 +529,9 @@ private fun InicioPerfil(perfil: Perfil, ordenes: List<OrdenTrabajo>, viewModel:
                         }
                         if (perfil == Perfil.TECNICO && orden.id == siguienteVisita?.id) {
                             OutlinedButton(onClick = {
-                                errorMapa = if (buscarLocalEnMapa(context, orden.local)) "" else "No hay una aplicación disponible para abrir el mapa."
+                                errorMapa = if (buscarLocalEnMapa(context, com.example.proyecto_acis.domain.DestinoMapa.consulta(orden, catastro))) "" else "No hay una aplicación disponible para abrir el mapa."
                             }, modifier = Modifier.fillMaxWidth()) { Text("Buscar local en Maps") }
-                            Text("Búsqueda por nombre del local. Confirma la dirección antes de viajar.",
+                            Text(com.example.proyecto_acis.domain.DestinoMapa.descripcion(orden, catastro),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.ACEPTADA) {

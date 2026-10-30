@@ -3,8 +3,6 @@ package com.example.proyecto_acis.ui
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -380,6 +378,7 @@ internal fun DetalleOrden(
             else errorAsignacion = viewModel.mensaje(orden.id)
         }) { Text("Asignar") } },
         dismissButton = { TextButton(onClick = { asignando = false }) { Text("Más tarde") } })
+    val catastro by viewModel.catastro.collectAsState()
     val context = LocalContext.current
     val scopeUbicacion = rememberCoroutineScope()
     var buscandoUbicacion by remember(orden.id) { mutableStateOf(false) }
@@ -583,6 +582,15 @@ internal fun DetalleOrden(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text(orden.tipo.etiqueta, style = MaterialTheme.typography.bodyMedium)
                     CampoDetalle("Fecha programada", orden.fechaProgramada)
+                    if (perfil != Perfil.CLIENTE) {
+                        Text(com.example.proyecto_acis.domain.DestinoMapa.descripcion(orden, catastro),
+                            style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = {
+                            errorMapa = if (buscarLocalEnMapa(context, com.example.proyecto_acis.domain.DestinoMapa.consulta(orden, catastro))) ""
+                                else "No hay una aplicación disponible para abrir el mapa."
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Cómo llegar al local") }
+                        if (errorMapa.isNotBlank()) Text(errorMapa, color = MaterialTheme.colorScheme.error)
+                    }
                     Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -598,19 +606,8 @@ internal fun DetalleOrden(
                     if (orden.ubicacionCheckIn.isNotBlank() && perfil != Perfil.CLIENTE) {
                         Text("Ubicación de la visita disponible", style = MaterialTheme.typography.bodySmall)
                         OutlinedButton(onClick = {
-                            val partes = orden.ubicacionCheckIn.split(",")
-                            val latitud = partes.getOrNull(0)?.trim()?.toDoubleOrNull()
-                            val longitud = partes.getOrNull(1)?.trim()?.toDoubleOrNull()
-                            if (partes.size == 2 && latitud != null && longitud != null &&
-                                latitud in -90.0..90.0 && longitud in -180.0..180.0) {
-                                val uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitud,$longitud")
-                                try {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                                    errorMapa = ""
-                                } catch (_: ActivityNotFoundException) {
-                                    errorMapa = "No hay una aplicación disponible para abrir el mapa."
-                                }
-                            } else errorMapa = "No se pudo abrir esta ubicación."
+                            errorMapa = if (abrirUbicacionVisita(context, orden.ubicacionCheckIn)) ""
+                                else "No se pudo abrir la ubicación de esta visita."
                         }, modifier = Modifier.fillMaxWidth()) { Text("Ver ubicación en Google Maps") }
                         if (errorMapa.isNotBlank()) Text(errorMapa, color = MaterialTheme.colorScheme.error)
                     }
