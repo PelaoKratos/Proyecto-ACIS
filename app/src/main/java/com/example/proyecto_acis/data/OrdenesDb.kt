@@ -9,7 +9,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOpenHelper(context, nombre, null, 7) {
+class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOpenHelper(context, nombre, null, 8) {
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
     }
@@ -43,6 +43,7 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
         """.trimIndent())
         crearTablaEventos(db)
         agregarSla(db)
+        crearSync(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -73,6 +74,7 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
             CatastroSql.vincularOrdenes(db)
         }
         if (oldVersion < 7) agregarSla(db)
+        if (oldVersion < 8) crearSync(db)
     }
 
     fun leer(): List<OrdenTrabajo> = readableDatabase.query(
@@ -133,6 +135,7 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
             val vinculada = if (evento?.tipo == TipoEvento.CREACION)
                 equipo.copy(acuerdoSla = CatastroSql.acuerdo(db, equipo)) else equipo
             db.insertOrThrow("ordenes", null, valores(vinculada))
+            marcarPendiente(db, vinculada.id)
             if (vinculada.estado == EstadoOt.CERRADA) vinculada.equipoId?.let { CatastroSql.actualizarMantencion(db, it, vinculada.checkOut) }
             if (evento != null) insertarEvento(db, evento)
             true
@@ -147,6 +150,7 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
                 listOf("slaClienteId", "slaClienteNombre", "slaHorasLlegada", "slaHorasResolucion", "slaInicio").forEach { remove(it) }
             }, "id = ? AND estado = ?", arrayOf(orden.id, estadoAnterior.name)) != 1) false
             else {
+                marcarPendiente(db, vinculada.id)
                 if (vinculada.estado == EstadoOt.CERRADA) vinculada.equipoId?.let { CatastroSql.actualizarMantencion(db, it, vinculada.checkOut) }
                 if (evento != null) insertarEvento(db, evento)
                 true
@@ -158,6 +162,7 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
         ordenes.forEach { orden ->
             val vinculada = vincularEquipo(db, orden)
             db.insertOrThrow("ordenes", null, valores(vinculada))
+            db.execSQL("INSERT INTO sync_ot (otId, revision, estado) VALUES (?, 0, 'LOCAL')", arrayOf(vinculada.id))
             if (vinculada.estado == EstadoOt.CERRADA) vinculada.equipoId?.let { CatastroSql.actualizarMantencion(db, it, vinculada.checkOut) }
             insertarEvento(db, EventoOt(otId = orden.id, tipo = TipoEvento.REGISTRO_PREVIO,
                 actor = "Sistema local", fechaMillis = System.currentTimeMillis(),
@@ -189,6 +194,28 @@ class OrdenesDb(context: Context, nombre: String = "acis_ordenes.db") : SQLiteOp
         } finally {
             if (db.inTransaction()) db.endTransaction()
         }
+    }
+
+    private fun crearSync(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE sync_ot (otId TEXT PRIMARY KEY REFERENCES ordenes(id) ON DELETE CASCADE, revision INTEGER NOT NULL, estado TEXT NOT NULL, intentoMillis INTEGER)")
+        db.execSQL("INSERT INTO sync_ot (otId, revision, estado) SELECT id, 0, 'LOCAL' FROM ordenes")
+    }
+    private fun marcarPendiente(db: SQLiteDatabase, id: String) {
+        db.execSQL("INSERT OR IGNORE INTO sync_ot (otId, revision, estado) VALUES (?, 0, 'LOCAL')", arrayOf(id))
+        db.execSQL("UPDATE sync_ot SET revision = revision + 1, estado = 'PENDIENTE', intentoMillis = NULL WHERE otId = ?", arrayOf(id))
+    }
+    fun leerSync(): List<RegistroSync> = readableDatabase.query("sync_ot", null, null, null, null, null, "otId ASC").use { cursor ->
+        buildList { while (cursor.moveToNext()) {
+            val indice = cursor.getColumnIndexOrThrow("intentoMillis")
+            add(RegistroSync(cursor.valor("otId"), cursor.getLong(cursor.getColumnIndexOrThrow("revision")),
+                EstadoSync.entries.firstOrNull { it.name == cursor.valor("estado") } ?: EstadoSync.LOCAL,
+                if (cursor.isNull(indice)) null else cursor.getLong(indice)))
+        } }
+    }
+    fun resultadoSync(id: String, revision: Long, error: Boolean, instante: Long): Boolean = transaccion { db ->
+        db.update("sync_ot", ContentValues().apply {
+            put("estado", if (error) "ERROR" else "ENVIADO"); put("intentoMillis", instante)
+        }, "otId = ? AND revision = ? AND estado != 'ENVIADO'", arrayOf(id, revision.toString())) == 1
     }
 
     private fun agregarSla(db: SQLiteDatabase) {

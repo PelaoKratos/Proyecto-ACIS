@@ -30,7 +30,7 @@ Comprobación de la API con coordenadas públicas de ejemplo: respuesta de 384 h
 ## Pendiente
 
 - 3.2 implementado: pendiente revisión del equipo en el celular.
-- 3.3: estado de sincronización mediante un repositorio simulado, identificado expresamente como simulación.
+- 3.3 implementado y verificado en emulador; pendiente revisión del equipo en celular.
 
 No hay backend ni sincronización real.
 
@@ -52,3 +52,17 @@ Inicio muestra siempre una explicación de Clima de las visitas. Si no hay órde
 - Las pruebas Android se ejecutaron directamente con adb en emulator-5580. El teléfono Xiaomi rechazó instalar la APK de pruebas y no se volvió a intentar allí.
 - Revisados el arranque, el reporte sin datos y el cambio de mes en el emulador. Captura local: app/build/acis-sla.png.
 - Pendiente revisión del equipo en celular: formulario de cliente, acuerdo de OT nueva y resultados al finalizar una visita.
+
+
+## 3.3 Sincronización simulada — feature/sincronizacion
+
+SQLite 8 agrega un estado por OT y revisión de cambios. Las migradas y las de demostración parten como locales; las nuevas y modificadas quedan pendientes. El detalle indica el estado y Mi perfil incluye un simulador de éxito o error, con reintento. No hay backend ni transmisión de datos por este módulo.
+
+Las confirmaciones comprueban la revisión: editar durante el envío no marca como enviado el cambio nuevo. Borrar una orden elimina también su estado y una simulación en curso no la recrea. Las operaciones de OT, evento y estado pendiente son atómicas.
+
+Historial de ramas locales: feature/clima (1952f61), feature/sla (967f637) y feature/sincronizacion (bloque actual). No se realizó push de estos avances.
+
+
+Verificación final del bloque 3.3: compilación correcta, 38 pruebas unitarias y 20 pruebas Android sin fallos. Incluye migraciones hasta SQLite 8, persistencia de estados, error/reintento, edición y borrado durante un envío simulado y reversión de revisión cuando falla un evento. La ejecución Android se dirigió exclusivamente a emulator-5580. Arranque y panel de Mi perfil sin órdenes revisados en pantalla; captura local en app/build/acis-sync.png.
+
+Fase 3 terminada: clima, SLA y sincronización simulada. El equipo confirmó que el avance quedó bien. Se guarda el cierre en un commit local de feature/sincronizacion; el push queda pendiente de solicitud.

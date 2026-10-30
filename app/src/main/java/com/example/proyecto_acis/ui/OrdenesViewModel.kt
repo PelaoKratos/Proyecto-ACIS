@@ -6,6 +6,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.AndroidViewModel
 import com.example.proyecto_acis.data.EventoOt
 import com.example.proyecto_acis.data.Catastro
@@ -34,6 +37,29 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     val ordenes = repository.ordenes
     val eventos = repository.eventos
     val catastro = repository.catastro
+    val sincronizacion = repository.sync.registros
+    var simulandoEnvio by mutableStateOf(false)
+        private set
+    var mensajeSync by mutableStateOf("")
+        private set
+    fun simularEnvio(ids: Set<String>, fallar: Boolean) {
+        if (simulandoEnvio) return
+        val permitidos = ordenesParaPerfil(ordenes.value, perfil).map { it.id }.toSet().intersect(ids)
+        if (permitidos.isEmpty()) return
+        simulandoEnvio = true
+        mensajeSync = ""
+        viewModelScope.launch {
+            try {
+                val resultado = repository.sync.simular(permitidos, fallar)
+                mensajeSync = "Simulación: ${resultado.enviados} completadas, ${resultado.errores} con error, ${resultado.modificados} sin confirmar. No se enviaron datos a un servidor."
+            } catch (cancelacion: CancellationException) {
+                throw cancelacion
+            } catch (_: Exception) {
+                mensajeSync = "No se pudo completar la simulación. Tus órdenes siguen guardadas en el dispositivo."
+            } finally { simulandoEnvio = false }
+        }
+    }
+
     var mensajeDemo by mutableStateOf("")
         private set
     fun cargarDemostracion() {

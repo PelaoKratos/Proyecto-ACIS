@@ -30,6 +30,7 @@ class OrdenesRepository(
     val eventos = _eventos.asStateFlow()
     private val _catastro = MutableStateFlow(database.leerCatastro())
     val catastro = _catastro.asStateFlow()
+    val sync = SyncRepositorySimulado(database)
 
     fun guardarCliente(datos: DatosCliente): Boolean {
         if (ValidadorCatastro.cliente(datos, _catastro.value) != null || !database.guardarCliente(datos)) return false
@@ -129,6 +130,7 @@ class OrdenesRepository(
         if (!database.eliminar(id, actual.estado)) return false
         _ordenes.value = _ordenes.value.filterNot { it.id == id }
         _eventos.value = database.leerEventos()
+        sync.recargar()
         actual.fotosEvidencia.forEach { File(fotos, it).delete() }
         return true
     }
@@ -211,6 +213,7 @@ class OrdenesRepository(
         _ordenes.value = database.leer()
         _eventos.value = database.leerEventos()
         _catastro.value = database.leerCatastro()
+        sync.recargar()
     }
 
     private fun evento(orden: OrdenTrabajo, tipo: TipoEvento, anterior: OrdenTrabajo? = null): EventoOt {

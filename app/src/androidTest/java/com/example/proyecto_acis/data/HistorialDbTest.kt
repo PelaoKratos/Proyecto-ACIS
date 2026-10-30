@@ -74,7 +74,7 @@ class HistorialDbTest {
         assertEquals(EstadoOt.EN_VISITA, conservada.estado)
         assertEquals(TipoEvento.REGISTRO_PREVIO, db.leerEventos().single().tipo)
         assertTrue(db.leerEventos().single().detalle.contains("29/10/2026 10:00"))
-        assertEquals(7, db.readableDatabase.version)
+        assertEquals(8, db.readableDatabase.version)
         assertNotNull(conservada.equipoId)
         val equipo = db.leerCatastro().equipos.first { it.id == conservada.equipoId }
         assertEquals("Congelador", equipo.nombre)
@@ -119,7 +119,7 @@ class HistorialDbTest {
         assertEquals(42L, evento.id)
         assertEquals("Evento conservado", evento.detalle)
         assertEquals(TipoEvento.CREACION, evento.tipo)
-        assertEquals(7, db.readableDatabase.version)
+        assertEquals(8, db.readableDatabase.version)
     }
 
     @Test fun estadoAnteriorIncorrectoNoAgregaUnEvento() {
@@ -275,11 +275,75 @@ class HistorialDbTest {
             anterior.version = 6
         }
         val db = base()
-        assertEquals(7, db.readableDatabase.version)
+        assertEquals(8, db.readableDatabase.version)
         assertEquals("antes.jpg", db.leer().single().fotoEvidencia)
         assertNull(db.leer().single().acuerdoSla)
         assertEquals(4, db.leerCatastro().clientes.first { it.id == "cliente-demo-comercial" }.horasLlegada)
         assertEquals(48, db.leerCatastro().clientes.first { it.id == "cliente-demo-servicios" }.horasResolucion)
+    }
+
+    @Test fun migracionDesdeSieteConservaAcuerdosYMarcaRegistrosLocales() {
+        val db = base()
+        val catastro = db.leerCatastro()
+        val equipo = catastro.equipos.first()
+        val local = catastro.locales.first { it.id == equipo.localId }
+        assertTrue(db.insertar(orden().copy(local = local.nombre, equipo = equipo.nombre), evento()))
+        val anterior = db.leer().single()
+        assertNotNull(anterior.acuerdoSla)
+        db.writableDatabase.execSQL("DROP TABLE sync_ot")
+        db.writableDatabase.version = 7
+        db.close()
+        val nueva = base()
+        assertEquals(8, nueva.readableDatabase.version)
+        assertEquals(anterior, nueva.leer().single())
+        assertEquals(EstadoSync.LOCAL, nueva.leerSync().single().estado)
+        assertEquals(0L, nueva.leerSync().single().revision)
+    }
+    @Test fun simulacionPermiteErrorReintentoYDejaCambiosNuevosPendientes() = kotlinx.coroutines.runBlocking {
+        val db = base()
+        assertTrue(db.insertar(orden(), evento()))
+        val sync = SyncRepositorySimulado(db) { }
+        assertEquals(EstadoSync.PENDIENTE, sync.registros.value.single().estado)
+        assertEquals(1, sync.simular(setOf("OT-1"), true).errores)
+        assertEquals(EstadoSync.ERROR, sync.registros.value.single().estado)
+        assertEquals(1, sync.simular(setOf("OT-1"), false).enviados)
+        assertEquals(EstadoSync.ENVIADO, sync.registros.value.single().estado)
+        assertEquals(0, sync.simular(setOf("OT-1"), false).enviados)
+        assertEquals(orden().descripcion, db.leer().single().descripcion)
+        assertTrue(db.actualizar(db.leer().single().copy(descripcion = "Nueva actividad"), EstadoOt.CREADA))
+        db.close()
+        val guardada = base().leerSync().single()
+        assertEquals(EstadoSync.PENDIENTE, guardada.estado)
+        assertEquals(2L, guardada.revision)
+    }
+    @Test fun editarDuranteElEnvioNoMarcaLaRevisionNuevaComoEnviada() = kotlinx.coroutines.runBlocking {
+        val db = base()
+        assertTrue(db.insertar(orden(), evento()))
+        val sync = SyncRepositorySimulado(db) {
+            assertTrue(db.actualizar(db.leer().single().copy(descripcion = "Cambio durante simulación"), EstadoOt.CREADA))
+        }
+        val resultado = sync.simular(setOf("OT-1"), false)
+        assertEquals(0, resultado.enviados)
+        assertEquals(1, resultado.modificados)
+        assertEquals(EstadoSync.PENDIENTE, sync.registros.value.single().estado)
+        assertEquals(2L, sync.registros.value.single().revision)
+    }
+    @Test fun borrarDuranteSimulacionNoRecreaLaOrdenNiSuEstado() = kotlinx.coroutines.runBlocking {
+        val db = base()
+        assertTrue(db.insertar(orden(), evento()))
+        val sync = SyncRepositorySimulado(db) { assertTrue(db.eliminar("OT-1", EstadoOt.CREADA)) }
+        assertEquals(1, sync.simular(setOf("OT-1"), false).modificados)
+        assertTrue(db.leer().isEmpty())
+        assertTrue(db.leerSync().isEmpty())
+    }
+    @Test fun unEventoFallidoNoCambiaLaRevisionDeSincronizacion() {
+        val db = base()
+        assertTrue(db.insertar(orden(), evento()))
+        val anterior = db.leerSync().single()
+        db.writableDatabase.execSQL("CREATE TRIGGER fallo_sync BEFORE INSERT ON eventos_ot BEGIN SELECT RAISE(ABORT, 'fallo'); END")
+        assertFalse(db.actualizar(db.leer().single().copy(estado = EstadoOt.ASIGNADA), EstadoOt.CREADA, evento(tipo = TipoEvento.ASIGNACION)))
+        assertEquals(anterior, db.leerSync().single())
+        assertEquals(EstadoOt.CREADA, db.leer().single().estado)
     }
 
 }

@@ -152,3 +152,19 @@ Para revisar: actualizar sin desinstalar, abrir un cliente y probar plazos vací
 
 
 Verificación del bloque SLA: 38 pruebas unitarias y 15 pruebas Android aprobadas, con migraciones hasta versión 7 y conservación de acuerdos. Arranque, reporte vacío y navegación mensual revisados en el emulador. El teléfono Xiaomi volvió a rechazar instalar la APK de prueba; la ejecución se dirigió exclusivamente al emulador mediante adb. Se conserva pendiente la revisión manual del equipo en el celular.
+
+
+## Fase 3.3: sincronización simulada
+
+Rama de trabajo: feature/sincronizacion, basada en feature/sla. La implementación es una simulación académica sin backend. No se envían órdenes, fotos, nombres ni ubicaciones a ningún servidor mediante esta función. La consulta real de clima sigue siendo independiente.
+
+SQLite versión 8 agrega sync_ot, ligada a cada OT mediante clave foránea y borrado asociado. Las órdenes anteriores y los ejemplos se incorporan como guardadas en el dispositivo. Una OT nueva o modificada pasa a Pendiente de envío simulado. El cambio de datos, su evento y la revisión pendiente se guardan en la misma transacción: un fallo no deja un envío pendiente por un cambio que no ocurrió.
+
+El detalle muestra el estado con la leyenda Simulación · sin servidor. Mi perfil permite simular un envío correcto o activar Simular un fallo de envío para probar Error y reintento. Se procesan únicamente las órdenes visibles del perfil. Un envío simulado completado no se repite hasta que haya cambios nuevos.
+
+El repositorio implementa SyncRepository con SyncRepositorySimulado. Cada registro conserva una revisión. Antes de confirmar, la base comprueba que esa revisión sigue vigente; editar durante la espera deja el cambio nuevo pendiente. Borrar durante la simulación no recrea la orden. Interrumpir la aplicación conserva lo ya guardado y permite reintentar lo restante. No se simula un servidor compartido entre dispositivos ni una cola de borrados remotos.
+
+Para probar: abrir una OT y observar su estado, ir a Mi perfil, activar el fallo y simular. Desactivar el fallo y reintentar; luego modificar la OT y comprobar que vuelve a pendiente. Cerrar y abrir la app para comprobar persistencia. Al cambiar de perfil solo se muestran los estados de sus órdenes visibles.
+
+
+Verificación del bloque de sincronización: compilación correcta, 38 pruebas unitarias y 20 pruebas Android aprobadas en el emulador. Se cubren las migraciones hasta versión 8, error y reintento, cambios/borrados durante la simulación y transacciones. El panel de Mi perfil y el estado sin órdenes se revisaron en pantalla. Pendiente prueba manual del equipo en el celular.

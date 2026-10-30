@@ -209,7 +209,7 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, c
                 }
             }
             composable(RutasAcis.PERFIL) {
-                PerfilActual(perfil, viewModel.tecnicoActual,
+                PerfilActual(perfil, viewModel.tecnicoActual, viewModel, visibles.map { it.id }.toSet(),
                     onCambiar = { nav.navigate(RutasAcis.ACCESO) { popUpTo(RutasAcis.ACCESO) { inclusive = true } } },
                     onDemo = if (perfil == Perfil.PLANIFICADOR && ordenes.isEmpty()) ({ viewModel.cargarDemostracion() }) else null,
                     mensajeDemo = viewModel.mensajeDemo)
@@ -248,7 +248,7 @@ fun AcisApp(viewModel: OrdenesViewModel, catastroViewModel: CatastroViewModel, c
 }
 
 @Composable
-private fun PerfilActual(perfil: Perfil, tecnico: String, onCambiar: () -> Unit,
+private fun PerfilActual(perfil: Perfil, tecnico: String, viewModel: OrdenesViewModel, ids: Set<String>, onCambiar: () -> Unit,
     onDemo: (() -> Unit)? = null, mensajeDemo: String = "") {
     var confirmarDemo by rememberSaveable { mutableStateOf(false) }
     if (confirmarDemo && onDemo != null) AlertDialog(onDismissRequest = { confirmarDemo = false },
@@ -278,6 +278,7 @@ private fun PerfilActual(perfil: Perfil, tecnico: String, onCambiar: () -> Unit,
             Text("Las órdenes, borradores y fotos se guardan en este dispositivo. Este acceso permite explorar las funciones de cada rol.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        item { com.example.proyecto_acis.ui.components.PanelSincronizacion(viewModel, ids) }
         if (onDemo != null) item {
             OutlinedButton(onClick = { confirmarDemo = true }, modifier = Modifier.fillMaxWidth()) { Text("Cargar órdenes de demostración") }
         }

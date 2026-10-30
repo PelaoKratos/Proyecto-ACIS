@@ -349,6 +349,7 @@ internal fun DetalleOrden(
     onEditar: () -> Unit = {},
     asignacionInicial: Boolean = false,
 ) {
+    val registrosSync by viewModel.sincronizacion.collectAsState()
     var escribiendoInforme by rememberSaveable(orden.id) { mutableStateOf(false) }
     var seccionInforme by rememberSaveable(orden.id) { mutableStateOf("inicio") }
     var asignando by rememberSaveable(orden.id) { mutableStateOf(asignacionInicial && orden.estado == EstadoOt.CREADA && perfil == Perfil.PLANIFICADOR) }
@@ -524,6 +525,7 @@ internal fun DetalleOrden(
                     style = MaterialTheme.typography.headlineMedium)
                 Text(orden.estado.etiqueta, style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                com.example.proyecto_acis.ui.components.SyncStatusPill(registrosSync.firstOrNull { it.otId == orden.id })
             }
         }
         if (!escribiendoInforme || orden.estado != EstadoOt.EN_VISITA) {
