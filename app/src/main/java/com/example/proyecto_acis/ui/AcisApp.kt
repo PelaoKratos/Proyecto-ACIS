@@ -155,8 +155,8 @@ internal fun ListaOrdenes(
                         }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(orden.local, style = MaterialTheme.typography.titleLarge)
-                        Text(orden.equipo, style = MaterialTheme.typography.bodyMedium,
+                        Text(orden.equipo, style = MaterialTheme.typography.titleLarge)
+                        Text(orden.local, style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -197,42 +197,44 @@ internal fun CrearOrden(
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(if (editando) "Editar orden de trabajo" else "Nueva orden de trabajo", style = MaterialTheme.typography.headlineSmall)
+                Text(if (editando) "Editar orden" else "Nueva orden / OT", style = MaterialTheme.typography.headlineMedium)
                 Text("Completa los datos para programar la visita.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        item { TituloSeccion("Ubicación y equipo", "Identifica dónde se realizará el trabajo") }
-        item { CampoFormulario(datos.local, viewModel::cambiarLocal, "Local", errores.local, ejemplo = "Ej. Supermercado Centro") }
-        item { CampoFormulario(datos.equipo, viewModel::cambiarEquipo, "Equipo", errores.equipo, ejemplo = "Ej. Refrigerador de bebidas") }
-        item { TituloSeccion("Trabajo solicitado", "Describe lo que necesita el cliente") }
-        item { CampoFormulario(datos.descripcion, viewModel::cambiarDescripcion,
-            "Descripción del trabajo", errores.descripcion, minLines = 3, ejemplo = "Ej. Revisar porque no enfría") }
-        item { Text("Tipo de trabajo", style = MaterialTheme.typography.titleMedium) }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            SeccionFormulario("01 / LOCAL Y EQUIPO") {
+                CampoFormulario(datos.local, viewModel::cambiarLocal, "Local", errores.local, ejemplo = "Ej. Supermercado Centro")
+                CampoFormulario(datos.equipo, viewModel::cambiarEquipo, "Equipo", errores.equipo, ejemplo = "Ej. Refrigerador de bebidas")
+            }
+        }
+        item {
+            SeccionFormulario("02 / TRABAJO SOLICITADO") {
+                CampoFormulario(datos.descripcion, viewModel::cambiarDescripcion,
+                    "Descripción del trabajo", errores.descripcion, minLines = 3, ejemplo = "Ej. Revisar porque no enfría")
+                Text("Tipo de trabajo", style = MaterialTheme.typography.titleSmall)
                 TipoOt.entries.filter { it != TipoOt.SIN_ESPECIFICAR }.forEach { tipo ->
-                    FilterChip(selected = datos.tipo == tipo,
-                        onClick = { viewModel.cambiarTipo(tipo) }, label = { Text(if (datos.tipo == tipo) "✓ ${tipo.etiqueta}" else tipo.etiqueta) })
+                    FilterChip(selected = datos.tipo == tipo, modifier = Modifier.fillMaxWidth(),
+                        onClick = { viewModel.cambiarTipo(tipo) },
+                        label = { Text(if (datos.tipo == tipo) "✓ ${tipo.etiqueta}" else tipo.etiqueta) })
                 }
+                if (errores.tipo != null) ErrorSeleccion(errores.tipo)
+                Text("Prioridad", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    PrioridadOt.entries.filter { it != PrioridadOt.SIN_ESPECIFICAR }.forEach { prioridad ->
+                        FilterChip(selected = datos.prioridad == prioridad, onClick = { viewModel.cambiarPrioridad(prioridad) },
+                            label = { Text(if (datos.prioridad == prioridad) "✓ ${prioridad.etiqueta}" else prioridad.etiqueta) })
+                    }
+                }
+                if (errores.prioridad != null) ErrorSeleccion(errores.prioridad)
             }
         }
-        if (errores.tipo != null) item { ErrorSeleccion(errores.tipo) }
-        item { Text("Prioridad", style = MaterialTheme.typography.titleMedium) }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                PrioridadOt.entries.filter { it != PrioridadOt.SIN_ESPECIFICAR }.forEach { prioridad ->
-                    FilterChip(selected = datos.prioridad == prioridad,
-                        onClick = { viewModel.cambiarPrioridad(prioridad) }, label = { Text(if (datos.prioridad == prioridad) "✓ ${prioridad.etiqueta}" else prioridad.etiqueta) })
-                }
-            }
-        }
-        if (errores.prioridad != null) item { ErrorSeleccion(errores.prioridad) }
-        item { TituloSeccion("Programación", "Elige una fecha y hora para la visita") }
-        item {
+            SeccionFormulario("03 / PROGRAMAR VISITA") {
+                Text("Selecciona la fecha y hora de la visita", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
                 onClick = {
                     focusManager.clearFocus()
@@ -246,11 +248,8 @@ internal fun CrearOrden(
                         ))
                     }, anio, mes, dia).show()
                 },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (datos.fecha.isNotBlank()) "Fecha: ${datos.fecha}" else "Seleccionar fecha") }
-        }
-        if (errores.fecha != null) item { ErrorSeleccion(errores.fecha) }
-        item {
+                modifier = Modifier.weight(1f),
+            ) { Text(if (datos.fecha.isNotBlank()) datos.fecha else "Fecha") }
             OutlinedButton(
                 onClick = {
                     focusManager.clearFocus()
@@ -263,10 +262,15 @@ internal fun CrearOrden(
                         ))
                     }, hora, minuto, true).show()
                 },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (datos.hora.isNotBlank()) "Hora: ${datos.hora}" else "Seleccionar hora") }
+                modifier = Modifier.weight(1f),
+            ) { Text(if (datos.hora.isNotBlank()) datos.hora else "Hora") }
+                }
+                if (errores.fecha != null) ErrorSeleccion(errores.fecha)
+                if (errores.hora != null) ErrorSeleccion(errores.hora)
+                Text("La asignación del técnico se realiza después de guardar la orden.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        if (errores.hora != null) item { ErrorSeleccion(errores.hora) }
         if (viewModel.errorGuardarCrear) item {
             Text("No se pudo guardar la OT.", color = MaterialTheme.colorScheme.error)
         }
@@ -351,13 +355,21 @@ internal fun DetalleOrden(
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(orden.id, style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary)
-                Text(orden.local, style = MaterialTheme.typography.headlineMedium)
-                Text(orden.equipo, style = MaterialTheme.typography.bodyLarge,
+                Text("${orden.id} / ${if (perfil == Perfil.CLIENTE) "Revisión" else if (orden.estado == EstadoOt.EN_VISITA) "Visita" else "Detalle"}",
+                    style = MaterialTheme.typography.headlineMedium)
+                Text(orden.estado.etiqueta, style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                AnimatedContent(targetState = orden.estado, label = "estado del detalle") { estado ->
-                    EstadoBadge(estado)
+            }
+        }
+        if (perfil == Perfil.TECNICO && orden.estado in setOf(EstadoOt.ASIGNADA, EstadoOt.ACEPTADA, EstadoOt.EN_VISITA, EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.CERRADA)) item {
+            Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("✓ Asignada", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Text(if (orden.estado in setOf(EstadoOt.EN_VISITA, EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.CERRADA)) "✓ En visita" else "○ En visita",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(if (orden.estado in setOf(EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.CERRADA)) "✓ Revisión" else "○ Revisión",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -383,7 +395,6 @@ internal fun DetalleOrden(
                 Text(if (buscandoUbicacion) "Buscando ubicación…" else "Guardar o actualizar ubicación")
             }
         }
-        item { TituloSeccion("Datos de la orden", "Información y avance de la visita") }
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -392,12 +403,26 @@ internal fun DetalleOrden(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    CampoDetalle("Equipo", orden.equipo)
-                    CampoDetalle("Tipo de trabajo", orden.tipo.etiqueta)
-                    PrioridadBadge(orden.prioridad)
+                    Text("OT / FICHA DE SERVICIO", style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EstadoBadge(orden.estado)
+                        PrioridadBadge(orden.prioridad)
+                    }
+                    Text(orden.equipo, style = MaterialTheme.typography.headlineSmall)
+                    Text(orden.local, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text(orden.tipo.etiqueta, style = MaterialTheme.typography.bodyMedium)
                     CampoDetalle("Fecha programada", orden.fechaProgramada)
-                    CampoDetalle("Trabajo solicitado", orden.descripcion)
+                    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("TRABAJO SOLICITADO", style = MaterialTheme.typography.labelSmall)
+                            Text(orden.descripcion, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
                     if (orden.tecnico.isNotBlank()) CampoDetalle("Técnico", orden.tecnico)
                     if (orden.checkIn.isNotBlank() || orden.checkOut.isNotBlank()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -423,12 +448,27 @@ internal fun DetalleOrden(
                         if (errorMapa.isNotBlank()) Text(errorMapa, color = MaterialTheme.colorScheme.error)
                     }
                     if (orden.checkOut.isNotBlank()) CampoDetalle("Check-out", orden.checkOut)
-                    if (orden.diagnostico.isNotBlank()) CampoDetalle("Diagnóstico", orden.diagnostico)
-                    if (orden.actividad.isNotBlank()) CampoDetalle("Actividad", orden.actividad)
-                    if (orden.materiales.isNotBlank()) CampoDetalle("Materiales", orden.materiales)
                     if (orden.observacionCliente.isNotBlank()) CampoDetalle("Observación del cliente", orden.observacionCliente)
                     if (orden.respuestaTecnico.isNotBlank()) CampoDetalle("Respuesta del técnico", orden.respuestaTecnico)
                     if (orden.fechaConformidad.isNotBlank()) CampoDetalle("Conformidad", orden.fechaConformidad)
+
+                }
+            }
+        }
+        if (orden.diagnostico.isNotBlank() || orden.actividad.isNotBlank() || orden.materiales.isNotBlank()) {
+            item { TituloSeccion("Informe del técnico", "Detalle del trabajo realizado") }
+            if (orden.diagnostico.isNotBlank()) item {
+                SeccionFormulario("01 / DIAGNÓSTICO") { Text(orden.diagnostico, style = MaterialTheme.typography.bodyMedium) }
+            }
+            if (orden.actividad.isNotBlank()) item {
+                SeccionFormulario("02 / ACTIVIDAD REALIZADA") { Text(orden.actividad, style = MaterialTheme.typography.bodyMedium) }
+            }
+            if (orden.materiales.isNotBlank()) item {
+                SeccionFormulario("03 / MATERIALES") { Text(orden.materiales, style = MaterialTheme.typography.bodyMedium) }
+            }
+        }
+        if (orden.fotoEvidencia.isNotBlank()) item {
+            SeccionFormulario("04 / EVIDENCIA DEL TRABAJO") {
                     if (orden.fotoEvidencia.isNotBlank()) {
                         val archivo = File(File(context.filesDir, "evidencias"), orden.fotoEvidencia)
                         val foto = remember(orden.fotoEvidencia) {
@@ -443,7 +483,6 @@ internal fun DetalleOrden(
                             Text("Foto de evidencia no disponible", color = MaterialTheme.colorScheme.error)
                         }
                     }
-                }
             }
         }
         if (perfil == Perfil.PLANIFICADOR && orden.estado == EstadoOt.CREADA) {
@@ -490,8 +529,20 @@ internal fun DetalleOrden(
             }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA) {
-            item { TituloSeccion("Informe técnico", "Registra el trabajo realizado en esta visita") }
+            item { TituloSeccion("Informe de visita", "Registra el trabajo realizado en esta visita") }
             item {
+                SeccionFormulario("01 / DIAGNÓSTICO Y ACTIVIDAD") {
+                    CampoFormulario(formulario.diagnostico, { viewModel.cambiarDiagnostico(orden.id, it) }, "Diagnóstico", erroresInforme.diagnostico, minLines = 2)
+                    CampoFormulario(formulario.actividad, { viewModel.cambiarActividad(orden.id, it) }, "Actividad realizada", erroresInforme.actividad, minLines = 2)
+                }
+            }
+            item { SeccionFormulario("02 / MATERIALES") {
+                CampoFormulario(formulario.materiales, { viewModel.cambiarMateriales(orden.id, it) }, "Materiales usados (opcional)")
+            } }
+            item {
+                SeccionFormulario("03 / EVIDENCIA FOTOGRÁFICA") {
+                Text("Agrega una fotografía del trabajo realizado.", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick = {
                     var archivoNuevo: File? = null
                     try {
@@ -518,13 +569,9 @@ internal fun DetalleOrden(
                 }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (orden.fotoEvidencia.isBlank()) "Tomar foto de evidencia" else "Cambiar foto de evidencia")
                 }
+                }
             }
             if (errorCamara.isNotBlank()) item { Text(errorCamara, color = MaterialTheme.colorScheme.error) }
-            item { CampoFormulario(formulario.diagnostico, { viewModel.cambiarDiagnostico(orden.id, it) }, "Diagnóstico",
-                erroresInforme.diagnostico, minLines = 2) }
-            item { CampoFormulario(formulario.actividad, { viewModel.cambiarActividad(orden.id, it) }, "Actividad realizada",
-                erroresInforme.actividad, minLines = 2) }
-            item { CampoFormulario(formulario.materiales, { viewModel.cambiarMateriales(orden.id, it) }, "Materiales usados (opcional)") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
@@ -537,15 +584,15 @@ internal fun DetalleOrden(
             }
         }
         if (perfil == Perfil.CLIENTE && orden.estado == EstadoOt.PENDIENTE_CONFORMIDAD) {
-            item { TituloSeccion("Revisar conformidad", "Confirma o comenta el trabajo realizado") }
+            item { TituloSeccion("¿Todo está conforme?", "Aprueba el trabajo o deja una observación para que el técnico responda.") }
             item { CampoFormulario(formulario.observacion, { viewModel.cambiarObservacion(orden.id, it) },
-                "Observación si no estás conforme", errorObservacion) }
+                "Tu observación", errorObservacion, minLines = 3, ejemplo = "Escribe aquí si algo necesita revisión") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { confirmarAprobacion = true }, modifier = Modifier.fillMaxWidth()) { Text("Aprobar trabajo") }
                     OutlinedButton(onClick = {
                         viewModel.observar(orden.id, formulario.observacion)
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Enviar comentario") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Dejar observación") }
                 }
             }
         }
@@ -563,6 +610,19 @@ internal fun DetalleOrden(
                 Text(mensaje, modifier = Modifier.padding(14.dp),
                     color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
+        }
+    }
+}
+
+@Composable
+private fun SeccionFormulario(titulo: String, contenido: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(titulo, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            contenido()
         }
     }
 }
@@ -591,6 +651,7 @@ private fun CampoFormulario(
         value = valor,
         onValueChange = { onCambio(capitalizarOraciones(it)) },
         label = { Text(etiqueta) },
+        shape = MaterialTheme.shapes.small,
         placeholder = ejemplo?.let { texto -> { Text(texto) } },
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         isError = error != null,
