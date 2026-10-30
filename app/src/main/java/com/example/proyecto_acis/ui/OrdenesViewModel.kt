@@ -6,20 +6,49 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import com.example.proyecto_acis.data.CatalogoDemo
 import com.example.proyecto_acis.data.EstadoOt
 import com.example.proyecto_acis.data.OrdenTrabajo
 import com.example.proyecto_acis.data.OrdenesRepository
 import com.example.proyecto_acis.data.Perfil
 import com.example.proyecto_acis.data.PrioridadOt
 import com.example.proyecto_acis.data.TipoOt
+import com.example.proyecto_acis.domain.ResumenOrdenes
 import com.example.proyecto_acis.domain.DatosCrearOt
 import com.example.proyecto_acis.domain.ErroresCrearOt
+import com.example.proyecto_acis.domain.ErroresAsignacion
 import com.example.proyecto_acis.domain.ErroresInforme
+import com.example.proyecto_acis.domain.TiempoVisita
 import com.example.proyecto_acis.domain.ValidadorOt
+import com.example.proyecto_acis.domain.MaterialInforme
+import com.example.proyecto_acis.domain.MaterialesInforme
+
+enum class FiltroOt { TODAS, SIN_ASIGNAR, EN_VISITA, OBSERVADAS }
 
 class OrdenesViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = OrdenesRepository(application)
     val ordenes = repository.ordenes
+    var mensajeDemo by mutableStateOf("")
+        private set
+    fun cargarDemostracion() {
+        if (perfil != Perfil.PLANIFICADOR) return
+        mensajeDemo = if (repository.cargarDemostracion()) "Se cargaron seis órdenes de demostración."
+            else "No se cargaron ejemplos. Revisa que no existan órdenes y vuelve a intentar."
+    }
+    val tecnicos = OrdenesRepository.TECNICOS
+    var tecnicoActual by mutableStateOf(OrdenesRepository.TECNICO_DEMO)
+        private set
+
+    fun seleccionarTecnico(nombre: String) {
+        if (nombre in tecnicos) {
+            seleccionarPerfil(Perfil.TECNICO)
+            tecnicoActual = nombre
+        }
+    }
+
+    fun cargaTecnico(nombre: String, fecha: String): Int = ordenes.value.count {
+        it.tecnico == nombre && it.fechaProgramada.substringBefore(" ") == fecha.substringBefore(" ") && it.estado != EstadoOt.CERRADA
+    }
 
     var perfil by mutableStateOf(Perfil.PLANIFICADOR)
         private set
@@ -32,33 +61,92 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     private var ordenObservacionConError by mutableStateOf<String?>(null)
     private var ordenRespuestaConError by mutableStateOf<String?>(null)
     private var mensajeDetalle by mutableStateOf<Pair<String, String>?>(null)
+    private val erroresAsignacion = mutableStateMapOf<String, ErroresAsignacion>()
+    fun erroresAsignacion(id: String): ErroresAsignacion = erroresAsignacion[id] ?: ErroresAsignacion()
+    fun limpiarErroresAsignacion(id: String) { erroresAsignacion.remove(id) }
+    val diagnosticosFrecuentes = listOf("Falla eléctrica", "Gas bajo", "Filtro sucio", "Termostato")
+    private val estadosBorrador = mutableStateMapOf<String, String>()
+    fun estadoBorrador(id: String): String = estadosBorrador[id].orEmpty()
     private val formulariosDetalle = mutableStateMapOf<String, FormularioDetalle>()
 
     data class FormularioDetalle(
         val diagnostico: String = "",
+        val diagnosticoLibre: Boolean = false,
         val actividad: String = "",
         val materiales: String = "",
         val observacion: String = "",
         val respuesta: String = "",
+        val materialesAnteriores: String = "",
+        val listaMateriales: List<MaterialInforme> = emptyList(),
     )
 
     fun formularioDetalle(orden: OrdenTrabajo): FormularioDetalle =
         formulariosDetalle.getOrPut(orden.id) {
             FormularioDetalle(
                 diagnostico = orden.diagnostico,
+                diagnosticoLibre = orden.diagnostico.isNotBlank() && orden.diagnostico !in diagnosticosFrecuentes,
                 actividad = orden.actividad,
                 materiales = orden.materiales,
+                materialesAnteriores = MaterialesInforme.leer(orden.materiales).first,
+                listaMateriales = MaterialesInforme.leer(orden.materiales).second,
             )
         }
+
+    fun elegirDiagnostico(id: String, opcion: String) = cambiarDetalle(id) {
+        if (opcion == "Otro") it.copy(diagnostico = "", diagnosticoLibre = true)
+        else if (opcion in diagnosticosFrecuentes) it.copy(diagnostico = opcion, diagnosticoLibre = false)
+        else it
+    }
 
     fun cambiarDiagnostico(id: String, valor: String) = cambiarDetalle(id) { it.copy(diagnostico = valor) }
     fun cambiarActividad(id: String, valor: String) = cambiarDetalle(id) { it.copy(actividad = valor) }
     fun cambiarMateriales(id: String, valor: String) = cambiarDetalle(id) { it.copy(materiales = valor) }
+    fun agregarMaterial(id: String) = cambiarListaMateriales(id) { it + MaterialInforme() }
+    fun quitarMaterial(id: String, indice: Int) = cambiarListaMateriales(id) { lista -> lista.filterIndexed { i, _ -> i != indice } }
+    fun cambiarMaterial(id: String, indice: Int, nombre: String? = null, cantidad: String? = null) =
+        cambiarListaMateriales(id) { lista -> lista.mapIndexed { i, material ->
+            if (i == indice) material.copy(nombre = nombre ?: material.nombre, cantidad = cantidad ?: material.cantidad) else material
+        } }
+
+    private fun cambiarListaMateriales(id: String, cambio: (List<MaterialInforme>) -> List<MaterialInforme>) {
+        cambiarDetalle(id) { datos ->
+            val lista = cambio(datos.listaMateriales)
+            datos.copy(listaMateriales = lista, materiales = MaterialesInforme.escribir(datos.materialesAnteriores, lista))
+        }
+    }
+
+    fun errorMaterial(id: String, indice: Int, cantidad: Boolean): String? {
+        if (ordenInformeConErrores != id) return null
+        val material = formulariosDetalle[id]?.listaMateriales?.getOrNull(indice) ?: return null
+        return if (cantidad) MaterialesInforme.errorCantidad(material.cantidad) else MaterialesInforme.errorNombre(material.nombre)
+    }
+
+    fun alternarActividad(id: String, actividad: String) {
+        val actual = formulariosDetalle[id] ?: return
+        val lineas = actual.actividad.lines().filter { it.isNotBlank() }
+        cambiarActividad(id, (if (actividad in lineas) lineas - actividad else lineas + actividad).joinToString("\n"))
+    }
+
+    fun autoguardar(id: String, datos: FormularioDetalle): Boolean {
+        if (!puedeActuar(id, Perfil.TECNICO)) return false
+        val orden = ordenes.value.firstOrNull { it.id == id } ?: return false
+        if (orden.estado != EstadoOt.EN_VISITA) return true
+        val sinCambios = orden.diagnostico == datos.diagnostico && orden.actividad == datos.actividad && orden.materiales == datos.materiales
+        val guardado = sinCambios || repository.guardarBorrador(id, datos.diagnostico, datos.actividad, datos.materiales)
+        estadosBorrador[id] = if (guardado) "Borrador guardado en el dispositivo" else "No se pudo guardar. Reintenta antes de salir."
+        return guardado
+    }
+
     fun cambiarObservacion(id: String, valor: String) = cambiarDetalle(id) { it.copy(observacion = valor) }
     fun cambiarRespuesta(id: String, valor: String) = cambiarDetalle(id) { it.copy(respuesta = valor) }
 
     private fun cambiarDetalle(id: String, cambio: (FormularioDetalle) -> FormularioDetalle) {
-        formulariosDetalle[id]?.let { formulariosDetalle[id] = cambio(it) }
+        formulariosDetalle[id]?.let { anterior ->
+            val nuevo = cambio(anterior)
+            formulariosDetalle[id] = nuevo
+            if (nuevo.diagnostico != anterior.diagnostico || nuevo.actividad != anterior.actividad || nuevo.materiales != anterior.materiales)
+                estadosBorrador[id] = "Cambios sin guardar"
+        }
     }
 
     val erroresCrear: ErroresCrearOt
@@ -76,14 +164,31 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     fun mensaje(ordenId: String): String = mensajeDetalle?.takeIf { it.first == ordenId }?.second.orEmpty()
 
     fun seleccionarPerfil(nuevo: Perfil) {
+        val pendientes = if (perfil == Perfil.TECNICO) formulariosDetalle.filter { (id, datos) -> !autoguardar(id, datos) } else emptyMap()
         perfil = nuevo
         formulariosDetalle.clear()
+        formulariosDetalle.putAll(pendientes)
         mensajeDetalle = null
         ordenInformeConErrores = null
         ordenObservacionConError = null
         ordenRespuestaConError = null
     }
-    fun cambiarLocal(valor: String) { datosCrear = datosCrear.copy(local = valor) }
+    val localesDemo: List<String> get() = CatalogoDemo.equiposPorLocal.keys.toList()
+    val equiposDemo: List<String> get() = CatalogoDemo.equiposPorLocal[datosCrear.local].orEmpty()
+
+    fun ultimaMantencion(): String? = ordenes.value.filter {
+        it.local == datosCrear.local && it.equipo == datosCrear.equipo && it.estado == EstadoOt.CERRADA
+    }.maxByOrNull { TiempoVisita.fecha(it.checkOut) ?: Long.MIN_VALUE }?.checkOut?.takeIf { it.isNotBlank() }
+
+    fun ultimasMantenciones(lista: List<OrdenTrabajo>): List<OrdenTrabajo> = lista
+        .filter { it.estado == EstadoOt.CERRADA && TiempoVisita.fecha(it.checkOut) != null }
+        .groupBy { it.local to it.equipo }
+        .values.mapNotNull { grupo -> grupo.maxByOrNull { TiempoVisita.fecha(it.checkOut) ?: Long.MIN_VALUE } }
+        .sortedByDescending { TiempoVisita.fecha(it.checkOut) }.take(3)
+
+    fun cambiarLocal(valor: String) {
+        if (valor != datosCrear.local) datosCrear = datosCrear.copy(local = valor, equipo = "")
+    }
     fun cambiarEquipo(valor: String) { datosCrear = datosCrear.copy(equipo = valor) }
     fun cambiarDescripcion(valor: String) { datosCrear = datosCrear.copy(descripcion = valor) }
     fun cambiarTipo(valor: TipoOt) { datosCrear = datosCrear.copy(tipo = valor) }
@@ -91,8 +196,20 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     fun cambiarFecha(valor: String) { datosCrear = datosCrear.copy(fecha = valor) }
     fun cambiarHora(valor: String) { datosCrear = datosCrear.copy(hora = valor) }
 
-    fun prepararCreacion() {
-        datosCrear = DatosCrearOt()
+    fun validarPasoCrear(paso: Int): Boolean {
+        mostrarErroresCrear = true
+        val errores = ValidadorOt.crear(datosCrear)
+        val valido = when (paso) {
+            1 -> errores.local == null && errores.equipo == null
+            2 -> errores.descripcion == null && errores.tipo == null && errores.prioridad == null
+            else -> !errores.hayErrores
+        }
+        if (valido) mostrarErroresCrear = false
+        return valido
+    }
+
+    fun prepararCreacion(local: String = "", equipo: String = "") {
+        datosCrear = DatosCrearOt(local = local, equipo = equipo)
         mostrarErroresCrear = false
         errorGuardarCrear = false
     }
@@ -127,6 +244,10 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
 
     fun postergar(id: String, fecha: String): Boolean {
         if (!puedeActuar(id, Perfil.TECNICO)) return false
+        ValidadorOt.postergacion(fecha)?.let { error ->
+            mensajeDetalle = id to error
+            return false
+        }
         val guardado = repository.postergar(id, fecha)
         mensajeDetalle = id to if (guardado) "Fecha de visita actualizada." else "No se pudo cambiar la fecha de visita."
         return guardado
@@ -164,7 +285,7 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
         lista.filter { orden ->
             when (perfilVisible) {
                 Perfil.PLANIFICADOR -> true
-                Perfil.TECNICO -> orden.tecnico == OrdenesRepository.TECNICO_DEMO
+                Perfil.TECNICO -> orden.tecnico == tecnicoActual
                 Perfil.CLIENTE -> orden.estado in setOf(
                     EstadoOt.PENDIENTE_CONFORMIDAD, EstadoOt.OBSERVADA, EstadoOt.CERRADA,
                 )
@@ -174,10 +295,65 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
                 .thenByDescending { it.id.removePrefix("OT-").toIntOrNull() ?: 0 },
         )
 
+    fun resumenOperativo(lista: List<OrdenTrabajo>) = ResumenOrdenes.operativo(lista)
+    fun catalogoEquipos(lista: List<OrdenTrabajo>) = ResumenOrdenes.equipos(lista, CatalogoDemo.equiposPorLocal)
+
+    fun filtrarOrdenes(lista: List<OrdenTrabajo>, filtro: FiltroOt): List<OrdenTrabajo> =
+        lista.filter { orden ->
+            when (filtro) {
+                FiltroOt.TODAS -> true
+                FiltroOt.SIN_ASIGNAR -> orden.estado == EstadoOt.CREADA
+                FiltroOt.EN_VISITA -> orden.estado == EstadoOt.EN_VISITA
+                FiltroOt.OBSERVADAS -> orden.estado == EstadoOt.OBSERVADA
+            }
+        }
+
+    fun programadasVencidas(lista: List<OrdenTrabajo>, ahora: Long = System.currentTimeMillis()): Int =
+        lista.count { it.estado != EstadoOt.CERRADA && TiempoVisita.minutos(it.fechaProgramada, ahora = ahora) != null }
+
+    fun jornada(lista: List<OrdenTrabajo>): List<OrdenTrabajo> {
+        val formato = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.forLanguageTag("es-CL"))
+        val hoy = formato.format(java.util.Date())
+        return lista.filter { it.fechaProgramada.substringBefore(" ") == hoy }
+            .sortedBy { it.fechaProgramada.substringAfter(" ") }
+    }
+
+    fun siguienteVisita(lista: List<OrdenTrabajo>): OrdenTrabajo? {
+        val hoy = jornada(lista)
+        return hoy.firstOrNull { it.estado == EstadoOt.EN_VISITA }
+            ?: hoy.firstOrNull { it.estado == EstadoOt.ACEPTADA || it.estado == EstadoOt.ASIGNADA }
+    }
+
+    fun historialEquipo(orden: OrdenTrabajo): List<OrdenTrabajo> = ordenes.value.filter {
+        it.id != orden.id && it.local == orden.local && it.equipo == orden.equipo && it.checkOut.isNotBlank()
+    }.sortedByDescending { it.ultimaActualizacion }.take(3)
+
+    fun hitosVisita(orden: OrdenTrabajo): List<Pair<String, String>> = buildList {
+        if (orden.checkIn.isNotBlank()) add((if (orden.ubicacionCheckIn.isNotBlank()) "Llegada verificada" else "Llegada registrada sin ubicación") to orden.checkIn)
+        if (orden.checkOut.isNotBlank()) add("Salida e informe registrados" to orden.checkOut)
+        if (orden.fechaConformidad.isNotBlank()) add("Trabajo aprobado" to orden.fechaConformidad)
+    }
+
+    fun primeraRevision(lista: List<OrdenTrabajo>): OrdenTrabajo? =
+        lista.firstOrNull { it.estado == EstadoOt.PENDIENTE_CONFORMIDAD }
+
     private fun puedeActuar(id: String, requerido: Perfil): Boolean =
         perfil == requerido && ordenesParaPerfil(ordenes.value, perfil).any { it.id == id }
 
-    fun asignar(id: String): Boolean = puedeActuar(id, Perfil.PLANIFICADOR) && repository.asignar(id)
+    fun asignar(id: String, tecnico: String = tecnicoActual, hora: String? = null): Boolean {
+        if (!puedeActuar(id, Perfil.PLANIFICADOR)) return false
+        val actual = ordenes.value.firstOrNull { it.id == id } ?: return false
+        val elegida = hora ?: actual.fechaProgramada.substringAfter(" ", "")
+        val errores = ValidadorOt.asignacion(tecnico, tecnicos, elegida)
+        erroresAsignacion[id] = errores
+        if (errores.hayErrores) {
+            mensajeDetalle = null
+            return false
+        }
+        val guardado = repository.asignar(id, tecnico, elegida)
+        mensajeDetalle = id to if (guardado) "Orden asignada a $tecnico en este dispositivo." else "No se pudo asignar la orden. Intenta nuevamente."
+        return guardado
+    }
     fun aceptar(id: String): Boolean = puedeActuar(id, Perfil.TECNICO) && repository.aceptar(id)
     fun iniciarVisita(id: String, ubicacion: String?) {
         if (!puedeActuar(id, Perfil.TECNICO)) return
@@ -193,9 +369,13 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     fun guardarBorrador(id: String, diagnostico: String, actividad: String, materiales: String) {
         if (!puedeActuar(id, Perfil.TECNICO)) return
         val guardado = repository.guardarBorrador(id, diagnostico, actividad, materiales)
+        estadosBorrador[id] = if (guardado) "Borrador guardado en el dispositivo" else "No se pudo guardar. Reintenta antes de salir."
         mensajeDetalle = id to if (guardado) "Borrador guardado en este dispositivo."
         else "No se pudo guardar el borrador."
     }
+
+    fun eliminarFoto(id: String, nombre: String): Boolean =
+        puedeActuar(id, Perfil.TECNICO) && repository.eliminarFoto(id, nombre)
 
     fun guardarFoto(id: String, nombre: String): Boolean {
         if (!puedeActuar(id, Perfil.TECNICO)) return false
@@ -208,7 +388,10 @@ class OrdenesViewModel(application: Application) : AndroidViewModel(application)
     fun finalizarVisita(id: String, diagnostico: String, actividad: String, materiales: String) {
         if (!puedeActuar(id, Perfil.TECNICO)) return
         ordenInformeConErrores = id
-        if (ValidadorOt.informe(diagnostico, actividad).hayErrores) {
+        val materialesInvalidos = formulariosDetalle[id]?.listaMateriales.orEmpty().any {
+            MaterialesInforme.errorNombre(it.nombre) != null || MaterialesInforme.errorCantidad(it.cantidad) != null
+        }
+        if (ValidadorOt.informe(diagnostico, actividad).hayErrores || materialesInvalidos) {
             mensajeDetalle = null
             return
         }

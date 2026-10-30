@@ -18,6 +18,17 @@ class OrdenesRepository(context: Context) {
     private val _ordenes = MutableStateFlow(cargarOrdenes())
     val ordenes = _ordenes.asStateFlow()
 
+    fun cargarDemostracion(): Boolean {
+        if (_ordenes.value.isNotEmpty()) return false
+        val primero = preferences.getInt("ultimoNumeroOt", 1000) + 1
+        val ejemplos = DatosDemostracion.crear(primero, System.currentTimeMillis())
+        if (!database.guardarTodas(ejemplos)) return false
+        preferences.edit().putInt("ultimoNumeroOt", primero + ejemplos.size - 1)
+            .putBoolean("migracionSQLiteCompleta", true).apply()
+        _ordenes.value = ejemplos
+        return true
+    }
+
     fun crear(
         local: String,
         equipo: String,
@@ -47,8 +58,13 @@ class OrdenesRepository(context: Context) {
         return id
     }
 
-    fun asignar(id: String): Boolean = cambiar(id, EstadoOt.CREADA) {
-        it.copy(estado = EstadoOt.ASIGNADA, tecnico = TECNICO_DEMO)
+    fun asignar(id: String, tecnico: String = TECNICO_DEMO, hora: String? = null): Boolean {
+        val actual = _ordenes.value.firstOrNull { it.id == id } ?: return false
+        val horaElegida = hora ?: actual.fechaProgramada.substringAfter(" ", "")
+        if (ValidadorOt.asignacion(tecnico, TECNICOS, horaElegida).hayErrores) return false
+        val fecha = "${actual.fechaProgramada.substringBefore(" ")} $horaElegida"
+        if (!fechaValida(fecha)) return false
+        return cambiar(id, EstadoOt.CREADA) { it.copy(estado = EstadoOt.ASIGNADA, tecnico = tecnico, fechaProgramada = fecha) }
     }
 
     fun aceptar(id: String): Boolean = cambiar(id, EstadoOt.ASIGNADA) {
@@ -60,7 +76,7 @@ class OrdenesRepository(context: Context) {
     }
 
     fun postergar(id: String, fecha: String): Boolean {
-        if (!fechaValida(fecha)) return false
+        if (ValidadorOt.postergacion(fecha) != null) return false
         return cambiar(id, EstadoOt.ASIGNADA) { it.copy(fechaProgramada = fecha.trim()) }
     }
 
@@ -77,12 +93,12 @@ class OrdenesRepository(context: Context) {
         val actual = _ordenes.value.firstOrNull { it.id == id && it.estado in estadosEditables } ?: return false
         if (!database.eliminar(id, actual.estado)) return false
         _ordenes.value = _ordenes.value.filterNot { it.id == id }
-        if (actual.fotoEvidencia.isNotBlank()) File(fotos, actual.fotoEvidencia).delete()
+        actual.fotosEvidencia.forEach { File(fotos, it).delete() }
         return true
     }
 
     fun iniciarVisita(id: String, ubicacion: String?): Boolean = cambiar(id, EstadoOt.ACEPTADA) {
-        it.copy(estado = EstadoOt.EN_VISITA, checkIn = ahora(), ubicacionCheckIn = ubicacion ?: it.ubicacionCheckIn)
+        it.copy(estado = EstadoOt.EN_VISITA, checkIn = ahora(), ubicacionCheckIn = ubicacion.orEmpty())
     }
 
     fun guardarUbicacion(id: String, ubicacion: String): Boolean {
@@ -99,9 +115,18 @@ class OrdenesRepository(context: Context) {
     fun guardarFoto(id: String, nombre: String): Boolean {
         val archivo = File(fotos, nombre)
         if (nombre != File(nombre).name || !archivo.isFile || archivo.length() == 0L) return false
-        val anterior = _ordenes.value.firstOrNull { it.id == id }?.fotoEvidencia.orEmpty()
-        val guardado = cambiar(id, EstadoOt.EN_VISITA) { it.copy(fotoEvidencia = nombre) }
-        if (guardado && anterior.isNotBlank() && anterior != nombre) File(fotos, anterior).delete()
+        return cambiar(id, EstadoOt.EN_VISITA) {
+            it.copy(fotoEvidencia = (it.fotosEvidencia + nombre).distinct().joinToString("\n"))
+        }
+    }
+
+    fun eliminarFoto(id: String, nombre: String): Boolean {
+        val actual = _ordenes.value.firstOrNull { it.id == id } ?: return false
+        if (nombre !in actual.fotosEvidencia) return false
+        val guardado = cambiar(id, EstadoOt.EN_VISITA) {
+            it.copy(fotoEvidencia = it.fotosEvidencia.filterNot { foto -> foto == nombre }.joinToString("\n"))
+        }
+        if (guardado) File(fotos, nombre).delete()
         return guardado
     }
 
@@ -201,6 +226,7 @@ class OrdenesRepository(context: Context) {
             fecha != null && formato.format(fecha) == texto
         } catch (_: Exception) { false }
         const val TECNICO_DEMO = "Técnico demo"
+        val TECNICOS = listOf(TECNICO_DEMO, "Brian Bravo")
 
         private fun ahora(): String = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-CL"))
             .format(Date())
