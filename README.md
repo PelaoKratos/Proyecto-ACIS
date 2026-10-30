@@ -13,13 +13,13 @@ Aplicación Android en Kotlin para registrar órdenes de trabajo (OT) de manteni
 
 ## Funciones disponibles
 
-- Planificador: crear OT con local, equipo, descripción, tipo, prioridad, fecha y hora; asignarla al técnico de demostración.
-- Técnico: aceptar la OT, registrar check-in, tomar una foto, guardar un borrador y finalizar el informe con diagnóstico, actividad y materiales.
+- Planificador: crear OT con local, equipo, descripción, tipo, prioridad, fecha y hora; asignarla a uno de los dos técnicos de demostración.
+- Técnico: aceptar la OT, registrar check-in, tomar varias fotos, guardar un borrador y finalizar el informe con diagnóstico, actividad y materiales.
 - Cliente: aprobar el trabajo o registrar una observación; el técnico puede responderla.
 - Las OT se ordenan por su actividad más reciente y permanecen guardadas en el dispositivo mediante SQLite.
 - El check-in solicita ubicación aproximada. Si no se concede el permiso o no se obtiene una posición, la visita puede continuar sin coordenadas.
 
-La app comienza con una selección de perfil. Cada perfil tiene un inicio con sus funciones y registros disponibles. La barra inferior permite ir a Inicio o Registros; la barra superior permite retroceder o cambiar de perfil. El ViewModel comprueba el rol antes de ejecutar acciones sobre las OT. Son perfiles de demostración en un mismo dispositivo; todavía no hay cuentas ni sincronización con un servidor.
+La app comienza con una selección de perfil. Cada perfil tiene un inicio con sus funciones y registros disponibles. La barra inferior adapta sus destinos al rol e incluye Perfil para cambiar de acceso; la barra superior permite retroceder. El ViewModel comprueba el rol antes de ejecutar acciones sobre las OT. Son perfiles de demostración en un mismo dispositivo; todavía no hay cuentas ni sincronización con un servidor.
 
 ## Cómo ejecutar
 
@@ -42,3 +42,129 @@ Las funciones principales se trabajan en ramas que pueden reutilizarse para camb
 ## Alcance actual
 
 Los datos y las fotos se guardan solo en el dispositivo. Cambiar de teléfono o borrar los datos de la app elimina esos registros. Los perfiles son de demostración y no restringen el acceso mediante inicio de sesión. Las funciones de sincronización, clima y SLA descritas en la planificación aún no están implementadas.
+
+## Avance de interfaz 2.0
+
+- Creación y edición de órdenes en tres pasos, con validación antes de avanzar y datos conservados al retroceder.
+- Filtros de inicio para el planificador: todas, sin asignar, en visita y observadas.
+- Estados y prioridades con colores semánticos y etiquetas de texto.
+- Jornada del técnico con visitas del día ordenadas por hora; los otros trabajos se consultan en Registros.
+- Acceso directo del cliente al informe pendiente. El cliente ve horas de llegada y salida, sin coordenadas.
+
+El avance de la Fase 1 quedó guardado en el commit 7627a99. El informe rápido y las evidencias múltiples están implementados. La app conserva el almacenamiento local. La asignación permite elegir Técnico demo o Brian Bravo y muestra las visitas abiertas de ese día. Al entrar como Técnico se elige una identidad de demostración y solo se muestran sus órdenes. Esta elección no equivale a autenticación.
+
+### Informe de visita
+
+El informe ofrece diagnósticos y actividades frecuentes, conservando los campos libres. El borrador se guarda al salir de la pantalla o cambiar de perfil. La evidencia permite agregar varias fotos etiquetadas Antes, Después u Otra, y eliminarlas mientras la visita está activa. Las fotos anteriores siguen siendo compatibles: el campo local de evidencia conserva nombres separados por salto de línea; no se cambia el esquema SQLite.
+
+Para revisar: iniciar una visita, escribir un informe, agregar dos fotos, salir y volver; comprobar que el borrador y las fotos permanecen. Eliminar una evidencia, finalizar y consultar el informe como cliente.
+
+El informe permite agregar materiales por nombre y cantidad, con validación al finalizar. Las cantidades admiten coma decimal. Los materiales anteriores se conservan como texto; las filas nuevas permanecen editables al volver al borrador. El detalle muestra el tiempo de visita a partir de la llegada, y la duración final cuando existe hora de salida.
+
+Los controles Guardar borrador y Finalizar visita permanecen bajo el contenido desplazable del informe. El formulario de OT muestra progreso animado y vuelve arriba al cambiar de paso. La revisión del cliente incluye los hitos disponibles (llegada, salida e informe y conformidad); las órdenes antiguas no tienen fecha de creación o asignación registrada, por lo que esas fechas no se inventan.
+
+Para comprobar en el teléfono: recorrer los tres pasos sin completar campos y revisar los errores; abrir una visita activa, escribir en el último material y comprobar el teclado y los controles; finalizar y revisar los hitos desde Cliente.
+
+La creación incluye selectores de demostración con tres locales y cinco equipos. Se puede elegir Ingresar otro para conservar el registro libre. Cambiar el local limpia la elección del equipo. La última mantención se consulta en las órdenes cerradas del mismo local y equipo. El inicio del planificador muestra órdenes abiertas con fecha programada vencida; este indicador no representa un SLA contractual.
+
+La barra inferior adapta sus nombres al rol: Jornada e Historial para Técnico, Servicios para Cliente y Órdenes para Planificador. Perfil muestra el acceso actual y permite cambiarlo. Al crear una OT se abre la asignación de técnico, que también puede posponerse. Las tarjetas de Jornada permiten aceptar o rechazar órdenes asignadas; el rechazo pide confirmación y una orden aceptada permite abrir el registro de llegada.
+
+La jornada destaca la visita activa o la siguiente pendiente del día. Maps utiliza la ubicación aproximada del local si se registró, luego su dirección y, si ambas faltan, busca por nombre. El técnico puede consultar hasta tres visitas anteriores del mismo local y equipo. Rechazar el permiso de ubicación no inicia la visita automáticamente: se puede reintentar o elegir Iniciar sin ubicación. Esta última opción inicia sin conservar una ubicación guardada previamente.
+
+La visita en curso permite abrir Escribir informe. El informe muestra diagnóstico, actividades, materiales y evidencias; Volver a la visita guarda el borrador. Las fechas se validan en la capa de lógica y la postergación requiere una fecha y hora futuras. Los errores de campo y los colores de estado incluyen transiciones visuales.
+
+Diagnóstico permite seleccionar Otro y describir una falla propia. Las fotos se muestran en dos columnas, con opciones de ampliar y eliminar (esta última solo durante la visita). Las miniaturas se cargan fuera del hilo de interfaz y con tamaño reducido. El borrador indica cambios pendientes o el resultado del guardado; abrir una visita sin modificarla ya no altera su última actividad mediante el autoguardado.
+
+La asignación muestra la hora original y sugerencias (09:00, 11:00 y 15:00). Guarda la hora y el técnico en una sola actualización de la orden. Las reglas de selección están en el validador y el ViewModel; la carga diaria es informativa y no representa disponibilidad por horario ni envío de notificaciones.
+
+El inicio de Cliente muestra hasta tres equipos con su última visita cerrada, calculada por la fecha de salida real, y el historial incluye duración en sitio cuando existen horas de llegada y salida. No se calculan próximos vencimientos de mantención porque aún no se han definido intervalos de mantenimiento por equipo.
+
+El planificador dispone de Equipos (consulta del catálogo demo y equipos de las OT, con creación de orden precompletada) y Reportes (totales, estados y duración media de visitas con horarios válidos). El acceso a Perfil del planificador está en la barra superior. Las otras funciones de Reportes, como SLA, se mantienen para la fase 3.
+
+En una instalación sin órdenes, Perfil del planificador permite cargar seis OT de demostración tras una confirmación. Los ejemplos abarcan seis estados y cinco equipos; no incluyen fotos ni ubicaciones inventadas. La carga es opcional, transaccional y no reemplaza registros existentes. Las acciones Foto, Materiales y Nota abren la cámara o la sección correspondiente del informe.
+
+## Fase 2: historial de eventos
+
+SQLite pasa de versión 4 a 5 incorporando la tabla eventos_ot. Las órdenes y fotos anteriores se conservan. Cada orden existente recibe un registro de incorporación con su estado y los horarios que ya estaban disponibles; no se reconstruyen fechas desconocidas.
+
+Desde esta versión se registran creación, asignación, edición, aceptación, rechazo, postergación, llegada, salida e informe, observación, respuesta y aprobación. Los eventos guardan fecha, rol, actor de demostración y detalle. La modificación de la OT y el evento se escriben en una misma transacción. El repositorio aplica reglas centralizadas de transición de estado. Al eliminar una orden se elimina también su historial asociado.
+
+El detalle presenta los últimos cinco eventos y permite desplegar el historial completo. Las coordenadas no se incluyen en los textos de eventos. Los borradores y cambios de fotos conservan su persistencia, sin generar un evento de transición de estado.
+
+Para revisar: actualizar la app conservando datos, abrir una OT anterior y comprobar su registro previo; crear una nueva, asignar, aceptar, registrar llegada, enviar informe, observar, responder y aprobar. Cerrar y abrir la app para comprobar el historial.
+
+Las pruebas unitarias cubren el recorrido permitido entre estados. HistorialDbTest utiliza bases y preferencias temporales con nombres únicos para comprobar las migraciones 4→6 y 5→6, reversión por fallo de evento, estado anterior incorrecto, persistencia, borrado asociado y recorrido completo. El teléfono había rechazado instalar la APK de prueba. El 30/10/2026 se ejecutaron correctamente en el emulador Medium_Phone_API_37.0 (Android 17): 10 pruebas Android, sin fallos, incluidas las migraciones y la persistencia del catastro. Se utilizan bases y preferencias temporales, sin modificar la base de uso de la aplicación.
+
+### Catastro persistente
+
+La versión 6 agrega clientes, locales y equipos relacionados mediante identificadores. Se incorporan dos clientes, tres locales y cinco equipos de demostración. Los equipos de las OT anteriores se vinculan sin borrar sus textos históricos; los locales desconocidos quedan bajo Cliente por identificar. Los registros incompletos conservan su contenido aunque todavía no puedan vincularse a un equipo.
+
+Los selectores de OT leen SQLite y filtran equipos por local. El ingreso libre sigue disponible y registra un equipo/local cuando corresponde. Equipos permite crear y editar nombre, tipo, ubicación dentro del local y condición de exterior. El formulario valida campos obligatorios y nombres repetidos en un mismo local. Un equipo con órdenes conserva su local; se puede cambiar el nombre sin alterar las OT históricas.
+
+Aprobar una OT actualiza la última mantención del equipo con la hora de salida, dentro de la misma transacción del cierre y su evento. Una mantención más antigua no reemplaza una fecha más reciente.
+
+Para revisar: actualizar conservando datos, abrir Equipos, agregar un equipo, comprobar sus errores y editarlo. Crear una OT para él y completar su recorrido hasta la aprobación. Comprobar la última mantención, las fotos y el historial anterior. HistorialDbTest ya comprobó la migración y sus relaciones en el emulador. Queda revisar en el teléfono el teclado, los permisos, cámara y apertura de Maps con los datos reales del equipo.
+
+Desde Equipos también se pueden administrar Clientes y Locales. Ambos permiten crear y editar, con validación por campo y nombres únicos. Cada local pertenece a un cliente; los importados bajo Cliente por identificar deben asociarse al cliente real al editarlos. No se permite renombrar ese registro reservado.
+
+La dirección y la ubicación del local son opcionales. Usar mi ubicación para este local solicita permiso aproximado y solo debe utilizarse estando en el lugar. Si se rechaza el permiso o no se obtiene una posición, se puede guardar sin ella. Quitar ubicación elimina ambas coordenadas al guardar; no se muestran números GPS en las pantallas.
+
+Cómo llegar al local está disponible en el detalle para planificador y técnico, además de la jornada y el listado de locales. Utiliza el punto guardado, la dirección o el nombre, en ese orden. Se resuelve el local mediante el identificador del equipo, por lo que un cambio de nombre no pierde la relación. La ubicación de llegada del técnico se conserva separada y no se utiliza como destino.
+
+AcisApplication comparte una sola instancia del repositorio y la sesión demo. OrdenesViewModel conserva el flujo de OT y CatastroViewModel administra los formularios de clientes, locales y equipos. Las reglas de nombres, asociaciones y coordenadas están en validadores puros de domain, con pruebas unitarias. No se agregaron dependencias ni se cambió la versión de la base de datos en este bloque.
+
+
+Verificación del bloque de clientes y locales (30/10/2026): 22 pruebas unitarias y 10 pruebas Android sin fallos. Se abrió la app en el emulador y se comprobó navegación a Clientes y Locales, error por cliente vacío, creación de cliente con confirmación y errores por cliente/nombre al guardar un local incompleto. La captura de ubicación y el salto a Maps requieren revisión manual en el teléfono. La paleta oscura y el acento lima se mantienen.
+
+
+## Fase 3.1: clima para equipos exteriores
+
+Rama de trabajo: feature/clima. Se conserva SQLite y el tema oscuro con acento lima. SLA y sincronización simulada siguen pendientes.
+
+El pronóstico se consulta en [Open-Meteo](https://open-meteo.com/en/docs), sin clave y mediante HTTPS. Se envían únicamente las coordenadas registradas del local, nunca la ubicación de llegada del técnico, fotos o nombres de clientes. No se solicita un permiso de ubicación adicional: si el local no tiene coordenadas, se explica cómo agregarlas y se permite continuar.
+
+Las alertas solo se muestran para equipos marcados como exteriores. Se considera lluvia desde 60% o viento desde 40 km/h; estos límites están en domain/Clima.kt. Son supuestos para el ejercicio y no impiden crear ni realizar una OT.
+
+El inicio del planificador presenta hasta tres próximas órdenes exteriores. El paso 3 de creación/edición y la tarjeta de jornada del técnico muestran el pronóstico para la hora programada. Se utilizan horas Unix en UTC y se presentan los horarios según el teléfono, igual que las fechas de las OT. La visita de las 11:30 usa la franja de las 11:00. No se sustituye una fecha sin datos por el clima actual.
+
+La API entrega hasta 16 días. Si la fecha está fuera del pronóstico o faltan valores, se indica que no hay datos; no se muestra un estado de buen clima inventado. El proveedor y la fecha/hora de consulta aparecen en el aviso. La consulta no bloquea el botón para guardar la orden.
+
+La caché se guarda por coordenadas en preferencias locales, sin cambios al esquema SQLite. Se reutiliza durante 30 minutos; Actualizar clima fuerza otra consulta. Si falla la red, se usa un respaldo de hasta 48 horas, identificado como última consulta sin actualizar. Pasado ese plazo se informa que no hay un pronóstico disponible. Cambiar las coordenadas evita reutilizar el pronóstico de otro lugar.
+
+Para probar: marcar un equipo como exterior y guardar la ubicación de su local; crear una OT cercana con ese equipo y revisar el paso 3. Consultar el inicio del planificador y luego la jornada del técnico asignado. Después de una primera consulta, desactivar internet y pulsar Actualizar clima para ver el respaldo. Probar también un local sin ubicación, una fecha lejana y guardar la OT mientras se consulta. El clima real puede no superar los umbrales; las pruebas verifican los límites sin depender del tiempo del día.
+
+
+## Fase 3.2: plazos de servicio y reporte SLA
+
+Rama de trabajo: feature/sla, basada en el avance de feature/clima. SQLite pasa a versión 7 con plazos opcionales por cliente y una copia del acuerdo en cada OT nueva. Las órdenes, fotos e historial anteriores se conservan sin asignarles un contrato retroactivo.
+
+Catálogo > Clientes permite configurar horas para llegar y resolver. Ambos plazos son opcionales; si se informa uno, se requieren ambos como enteros entre 1 y 720, y el de resolución no puede ser menor al de llegada. Comercial Sur demo comienza con 4/24 horas y Servicios Centro demo con 8/48; son supuestos del ejercicio, editables. Los otros clientes no reciben plazos inventados.
+
+Ambos límites se cuentan en horas corridas desde la programación original guardada al crear la OT. Se conservan cliente, nombre, plazos y programación de ese momento: editar el cliente, cambiar el local o postergar la visita no reinicia el acuerdo. Una renegociación de SLA no se implementa en este bloque. El detalle de la OT muestra los plazos originales.
+
+El cálculo usa los eventos de creación, llegada e informe. La resolución se considera al enviar el informe, sin esperar la conformidad del cliente. Llegar o resolver exactamente en el límite cumple. Una llegada tardía o un plazo agotado sin completar implica vencimiento. Se considera en riesgo la última hora antes del próximo límite. Los eventos incompletos, incoherentes o futuros no permiten declarar cumplimiento.
+
+Reportes permite avanzar y retroceder meses. El periodo corresponde a la programación original del acuerdo. Las antiguas sin acuerdo se ubican por su programación disponible y se cuentan como sin datos suficientes. El porcentaje es cumplidas / (cumplidas + vencidas); las pendientes dentro de plazo y las sin datos se informan aparte. El tiempo medio del bloque SLA utiliza llegada e informe verificables del periodo. La actividad general de todos los registros permanece diferenciada debajo.
+
+La lista de riesgo muestra órdenes por atender y abre su detalle. Los contratos se agrupan por identificador del cliente conservado en cada acuerdo; los locales reclasificados no trasladan el historial a otro cliente.
+
+Para revisar: actualizar sin desinstalar, abrir un cliente y probar plazos vacíos, incompletos y válidos. Crear una OT para un equipo de ese cliente, comprobar el acuerdo en el detalle, cambiar luego los plazos del cliente y verificar que la OT conserva los anteriores. Revisar Reportes, cambiar de mes y completar llegada e informe. Las OT antiguas no deben aparecer como cumplidas por faltar información.
+
+
+Verificación del bloque SLA: 38 pruebas unitarias y 15 pruebas Android aprobadas, con migraciones hasta versión 7 y conservación de acuerdos. Arranque, reporte vacío y navegación mensual revisados en el emulador. El teléfono Xiaomi volvió a rechazar instalar la APK de prueba; la ejecución se dirigió exclusivamente al emulador mediante adb. Se conserva pendiente la revisión manual del equipo en el celular.
+
+
+## Fase 3.3: sincronización simulada
+
+Rama de trabajo: feature/sincronizacion, basada en feature/sla. La implementación es una simulación académica sin backend. No se envían órdenes, fotos, nombres ni ubicaciones a ningún servidor mediante esta función. La consulta real de clima sigue siendo independiente.
+
+SQLite versión 8 agrega sync_ot, ligada a cada OT mediante clave foránea y borrado asociado. Las órdenes anteriores y los ejemplos se incorporan como guardadas en el dispositivo. Una OT nueva o modificada pasa a Pendiente de envío simulado. El cambio de datos, su evento y la revisión pendiente se guardan en la misma transacción: un fallo no deja un envío pendiente por un cambio que no ocurrió.
+
+El detalle muestra el estado con la leyenda Simulación · sin servidor. Mi perfil permite simular un envío correcto o activar Simular un fallo de envío para probar Error y reintento. Se procesan únicamente las órdenes visibles del perfil. Un envío simulado completado no se repite hasta que haya cambios nuevos.
+
+El repositorio implementa SyncRepository con SyncRepositorySimulado. Cada registro conserva una revisión. Antes de confirmar, la base comprueba que esa revisión sigue vigente; editar durante la espera deja el cambio nuevo pendiente. Borrar durante la simulación no recrea la orden. Interrumpir la aplicación conserva lo ya guardado y permite reintentar lo restante. No se simula un servidor compartido entre dispositivos ni una cola de borrados remotos.
+
+Para probar: abrir una OT y observar su estado, ir a Mi perfil, activar el fallo y simular. Desactivar el fallo y reintentar; luego modificar la OT y comprobar que vuelve a pendiente. Cerrar y abrir la app para comprobar persistencia. Al cambiar de perfil solo se muestran los estados de sus órdenes visibles.
+
+
+Verificación del bloque de sincronización: compilación correcta, 38 pruebas unitarias y 20 pruebas Android aprobadas en el emulador. Se cubren las migraciones hasta versión 8, error y reintento, cambios/borrados durante la simulación y transacciones. El panel de Mi perfil y el estado sin órdenes se revisaron en pantalla. Pendiente prueba manual del equipo en el celular.
