@@ -123,7 +123,7 @@ Rama de trabajo: feature/clima. Se conserva SQLite y el tema oscuro con acento l
 
 El pronóstico se consulta en [Open-Meteo](https://open-meteo.com/en/docs), sin clave y mediante HTTPS. Se envían únicamente las coordenadas registradas del local, nunca la ubicación de llegada del técnico, fotos o nombres de clientes. No se solicita un permiso de ubicación adicional: si el local no tiene coordenadas, se explica cómo agregarlas y se permite continuar.
 
-Las alertas solo se muestran para equipos marcados como exteriores. Se considera lluvia desde 60% o viento desde 40 km/h; estos límites están en domain/Clima.kt. Son supuestos para el ejercicio y no impiden crear ni realizar una OT.
+Las alertas solo se muestran para equipos marcados como exteriores. Se considera lluvia desde 60% o viento desde 40 km/h; estos límites están en domain/service/Clima.kt. Son supuestos para el ejercicio y no impiden crear ni realizar una OT.
 
 El inicio del planificador presenta hasta tres próximas órdenes exteriores. El paso 3 de creación/edición y la tarjeta de jornada del técnico muestran el pronóstico para la hora programada. Se utilizan horas Unix en UTC y se presentan los horarios según el teléfono, igual que las fechas de las OT. La visita de las 11:30 usa la franja de las 11:00. No se sustituye una fecha sin datos por el clima actual.
 
@@ -168,3 +168,24 @@ Para probar: abrir una OT y observar su estado, ir a Mi perfil, activar el fallo
 
 
 Verificación del bloque de sincronización: compilación correcta, 38 pruebas unitarias y 20 pruebas Android aprobadas en el emulador. Se cubren las migraciones hasta versión 8, error y reintento, cambios/borrados durante la simulación y transacciones. El panel de Mi perfil y el estado sin órdenes se revisaron en pantalla. Pendiente prueba manual del equipo en el celular.
+
+
+## Organización del código
+
+El código se ordena por responsabilidad: pantallas por función en `ui/screens`, navegación en `ui/navigation`, estado en `ui/viewmodel` y elementos compartidos en `ui/components`. Los modelos y reglas están en `domain`; SQLite, caché, API y repositorios tienen paquetes separados en `data`. Cámara y permisos permanecen en las pantallas que los solicitan; ubicación y apertura de Maps tienen helpers en `device`.
+
+La guía [Arquitectura y ubicación de archivos](docs/arquitectura.md) indica dónde encontrar cada parte y el recorrido de una acción. La reorganización conserva el applicationId, las rutas de navegación y SQLite versión 8.
+
+## Persistencia con Room
+
+Las ordenes, el catalogo, los eventos y las revisiones de sincronizacion se guardan con Room, usando la base local existente en version 9. La actualizacion migra los registros anteriores y conserva las referencias a sus fotografias. No es necesario borrar los datos ni desinstalar la aplicacion.
+
+Las lecturas y escrituras se realizan en segundo plano. Al abrir se muestra la carga de registros; durante una operacion se evita guardar dos veces. La sincronizacion continua siendo una simulacion local.
+
+La estructura y las pruebas de migracion estan descritas en [arquitectura](docs/arquitectura.md) y el avance en [etapas de mejoras](docs/etapas-mejoras.md).
+
+## Galería y perfil recordado
+
+En una OT en visita, el técnico puede tomar una foto o elegir una desde la galería, clasificada como Antes, Después u Otra. Las fotos elegidas se copian dentro de ACIS para conservarlas aunque se elimine el original. Se muestran avisos si el archivo no es válido o supera 20 MB.
+
+Mi perfil incluye Recordar mi perfil, desactivado por defecto. Al activarlo, la próxima apertura entra con el último perfil de demostración y el técnico seleccionado. Puede desactivarse y cambiarse de perfil en cualquier momento. Este ajuste usa DataStore; los registros siguen en Room.

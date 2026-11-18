@@ -7,8 +7,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.proyecto_acis.data.EventoOt
-import com.example.proyecto_acis.data.Perfil
+import com.example.proyecto_acis.domain.model.EventoOt
+import com.example.proyecto_acis.domain.model.Perfil
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

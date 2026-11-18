@@ -9,11 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
-import com.example.proyecto_acis.ui.ClimaViewModel
-import com.example.proyecto_acis.ui.CatastroViewModel
-import com.example.proyecto_acis.ui.AcisApp
-import com.example.proyecto_acis.ui.OrdenesViewModel
+import com.example.proyecto_acis.ui.navigation.AcisApp
 import com.example.proyecto_acis.ui.theme.ProyectoACISTheme
+import com.example.proyecto_acis.ui.viewmodel.CatastroViewModel
+import com.example.proyecto_acis.ui.viewmodel.ClimaViewModel
+import com.example.proyecto_acis.ui.viewmodel.OrdenesViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
