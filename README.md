@@ -1,6 +1,6 @@
 # Proyecto ACIS
 
-> **Nueva pauta EFT revisada el 18/11/2026:** la versión local 1.1.0 no es todavía la entrega final EFT. Faltan backend propio Spring Boot, cuatro roles, cuentas completas y cobertura medida del 80 %. El diagnóstico y el orden de implementación están en [Plan EFT](docs/plan-eft.md). El paquete anterior se conserva como referencia del avance local.
+> **Nueva pauta EFT revisada el 18/11/2026:** la versión local 1.1.0 no es todavía la entrega final EFT. Falta completar la integración de backend Spring Boot, cuatro roles, cuentas y cobertura medida del 80 %. El diagnóstico y el orden de implementación están en [Plan EFT](docs/plan-eft.md). El paquete anterior se conserva como referencia del avance local.
 
 Aplicación Android en Kotlin para gestionar órdenes de servicio técnico. Entrega académica de DSY1105, versión **1.1.0** (versionCode 2).
 
@@ -71,3 +71,11 @@ El encargo exige planificación compartida y evidencia de participación real. E
 ## Ampliación posterior
 
 La base local 1.1.0 se conserva en main y feature/mejoras-acis. La adecuación a la EFT se trabajará en backend-sincronizacion: la pauta requiere microservicios Spring Boot, cuentas reales, cuatro roles y cobertura medida. No hay servidor propio desplegado ni envío real de OT o fotos.
+
+## Base del backend EFT
+
+En backend-sincronizacion se incorporan dos aplicaciones Spring Boot en Java 17: usuarios-service y operaciones-service. Tienen puertos y bases PostgreSQL separados, migraciones Flyway, estado HTTP y formato de errores. Usuarios implementa registro, login, renovación, cierre, recuperación por correo, perfil y administración de cuatro roles. Operaciones conserva sus rutas de negocio cerradas. Android mantiene sus perfiles demo actuales.
+
+La etapa 1 pasó 20 pruebas del backend y se comprobó con PostgreSQL real el arranque, aislamiento de cuentas y conservación de datos al reiniciar. El avance de cuentas pasó 50 pruebas y una comprobación adicional con PostgreSQL y SMTP local: permisos, cambio de clave, uso único y revocación. No se modificó el código Android ni se volvió a ejecutar su suite de 98 pruebas en este avance. Todavía no hay login, CRUD ni sincronización real en la app.
+
+Ver [ejecución del backend](backend/README.md) y [contrato de la API](backend/contrato-api.md). El siguiente paso es conectar las cuentas y los cuatro roles en Android antes de abrir el primer CRUD remoto.

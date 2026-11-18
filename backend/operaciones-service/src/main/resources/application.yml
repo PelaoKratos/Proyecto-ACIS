@@ -1,0 +1,27 @@
+server:
+  port: ${ACIS_OPERACIONES_PORT:8082}
+spring:
+  application:
+    name: acis-operaciones
+  datasource:
+    url: ${ACIS_OPERACIONES_DB_URL:jdbc:postgresql://localhost:55432/acis_operaciones}
+    username: ${ACIS_OPERACIONES_DB_USER:acis_operaciones}
+    password: ${ACIS_OPERACIONES_DB_PASSWORD:}
+  flyway:
+    enabled: true
+  sql:
+    init:
+      mode: never
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db

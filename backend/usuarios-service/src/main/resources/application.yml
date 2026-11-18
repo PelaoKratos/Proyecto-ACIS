@@ -1,0 +1,44 @@
+server:
+  port: ${ACIS_USUARIOS_PORT:8081}
+spring:
+  application:
+    name: acis-usuarios
+  datasource:
+    url: ${ACIS_USUARIOS_DB_URL:jdbc:postgresql://localhost:55432/acis_usuarios}
+    username: ${ACIS_USUARIOS_DB_USER:acis_usuarios}
+    password: ${ACIS_USUARIOS_DB_PASSWORD:}
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  mail:
+    host: ${ACIS_SMTP_HOST:localhost}
+    port: ${ACIS_SMTP_PORT:1025}
+    properties:
+      mail.smtp.connectiontimeout: 3000
+      mail.smtp.timeout: 3000
+      mail.smtp.writetimeout: 3000
+  flyway:
+    enabled: true
+  sql:
+    init:
+      mode: never
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+acis:
+  correo:
+    remitente: ${ACIS_CORREO_REMITENTE:acis@localhost.test}
+  administrador:
+    nombre: ${ACIS_ADMIN_NOMBRE:Administrador}
+    correo: ${ACIS_ADMIN_CORREO:}
+    clave: ${ACIS_ADMIN_CLAVE:}

@@ -89,3 +89,21 @@ Fuentes técnicas: [red del emulador Android](https://developer.android.com/stud
 No se cambiaron funciones, roles ni esquema de datos de Android. No se ejecutó el ZIP del profesor ni se copió su proyecto sobre ACIS. Se preparó este diagnóstico y se distinguió el paquete local anterior de la futura entrega EFT. Faltaría el ejemplo correcto si el docente entregó otro proyecto con la API; podemos construir los servicios propios conforme al contrato aunque no exista ese segundo ZIP.
 
 SHA-256 del ZIP revisado: `A201FFF26D48705E70EC05E0D09F36D91037FEB987E1079CC6F8D80B0616DDBD`.
+
+## Avance de implementación del 18 de noviembre de 2026
+
+Etapa 1 implementada en backend-sincronizacion: dos servicios Spring Boot 3.5.16, Java 17, Maven Wrapper, contrato inicial, roles, errores HTTP, configuración de seguridad cerrada y migraciones Flyway para bases PostgreSQL independientes. La configuración local y las contraseñas se excluyen de Git.
+
+Se empaquetaron ambos servicios y pasaron 20 pruebas del backend. Se verificó además PostgreSQL real, permisos separados de base, readiness y conservación de un registro al reiniciar los JAR. Se retiró el registro de comprobación. No se modificó Android ni el paquete 1.1.0. El inicio de sesión, recuperación, perfil, permisos reales, CRUD y sincronización están pendientes, como indica backend/contrato-api.md.
+
+La etapa 2 continúa con cuentas y cuatro roles. La existencia del enum de roles y de una tabla de usuarios no se cuenta como implementación completa de autenticación ni de la interfaz del administrador.
+
+## Avance de cuentas del 18 de noviembre de 2026
+
+Se implementó la parte de servidor de la etapa 2: registro de clientes, login, renovación y cierre, recuperación por SMTP, edición del perfil y administración de roles y estado activo. El registro público no concede privilegios. El primer administrador se configura de forma privada y no se modifica en cada arranque.
+
+Los paquetes de usuarios separan autenticacion, usuario, seguridad, notificaciones y configuracion. Dentro de cada función se distinguen controladores, DTO, servicios y repositorios. La migración V2 agrega sesiones y códigos con hashes y relaciones en cascada. Se controlan las versiones y se protege al último administrador activo.
+
+Pasaron 50 pruebas automatizadas del backend, incluidas expiración, concurrencia y revocación. También se inició el JAR con PostgreSQL real y se comprobó la entrega SMTP en Mailpit, cambio de rol, invalidación de sesiones, cambio de contraseña y rechazo al reutilizar el código. Se eliminaron solo las cuentas de comprobación y sus dependencias; el servicio usado en la prueba quedó detenido. PostgreSQL y Mailpit siguen disponibles en Docker para desarrollo.
+
+La etapa 2 aún no está completa: faltan las pantallas Android de cuentas y administración, almacenamiento de sesión y separación de datos locales por cuenta. Operaciones todavía no autoriza sesiones ni expone CRUD remoto. El envío de correo de producción y los reintentos SMTP también están pendientes. Android y la APK firmada 1.1.0 permanecen sin cambios. No se afirma cobertura del 80 % ni sincronización entre dispositivos.
