@@ -18,9 +18,8 @@ fun SyncStatusPill(registro: RegistroSync?) {
     val estado = registro?.estado ?: EstadoSync.LOCAL
     Surface(color = if (estado == EstadoSync.ERROR) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
         shape = MaterialTheme.shapes.small) {
-        Column(Modifier.padding(10.dp)) {
-            Text(estado.etiqueta, style = MaterialTheme.typography.labelMedium)
-            Text("Simulación · sin servidor", style = MaterialTheme.typography.bodySmall)
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+            Text("${estado.etiqueta} · simulado", style = MaterialTheme.typography.labelSmall)
         }
     }
 }

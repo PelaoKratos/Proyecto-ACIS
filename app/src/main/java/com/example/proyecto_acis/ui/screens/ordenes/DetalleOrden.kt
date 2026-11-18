@@ -399,22 +399,26 @@ internal fun DetalleOrden(
             }
         }
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA) item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
-                    seccionInforme = "fotos"; escribiendoInforme = true; tomarFoto()
-                }, modifier = Modifier.weight(1f)) { Text("Foto") }
-                OutlinedButton(onClick = {
-                    seccionInforme = "materiales"; escribiendoInforme = true
-                }, modifier = Modifier.weight(1f)) { Text("Materiales") }
-                OutlinedButton(onClick = {
-                    seccionInforme = "nota"; escribiendoInforme = true
-                }, modifier = Modifier.weight(1f)) { Text("Nota") }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { seccionInforme = "inicio"; escribiendoInforme = true },
+                    modifier = Modifier.fillMaxWidth()) { Text("Escribir informe") }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        seccionInforme = "fotos"; escribiendoInforme = true; tomarFoto()
+                    }, modifier = Modifier.weight(1f)) { Text("Foto") }
+                    OutlinedButton(onClick = {
+                        seccionInforme = "materiales"; escribiendoInforme = true
+                    }, modifier = Modifier.weight(1f)) { Text("Materiales") }
+                    OutlinedButton(onClick = {
+                        seccionInforme = "nota"; escribiendoInforme = true
+                    }, modifier = Modifier.weight(1f)) { Text("Nota") }
+                }
             }
         }
         if (perfil == Perfil.TECNICO) item {
             SeccionFormulario("Historial del equipo") {
                 val anteriores = viewModel.historialEquipo(orden)
-                if (anteriores.isEmpty()) Text("No hay visitas anteriores registradas para este equipo.",
+                if (anteriores.isEmpty()) Text("Sin visitas anteriores.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 anteriores.forEach { visita ->
                     CampoDetalle("${visita.id} · ${visita.checkOut}", visita.actividad)
@@ -461,7 +465,7 @@ internal fun DetalleOrden(
         if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.ACEPTADA) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Puedes registrar la visita con tu ubicación aproximada o continuar sin compartirla.",
+                    Text("Compartir ubicación es opcional.",
                         style = MaterialTheme.typography.bodySmall)
                     Button(onClick = {
                         actualizarUbicacion = false
@@ -522,7 +526,7 @@ internal fun DetalleOrden(
                 OutlinedButton(onClick = { viewModel.agregarMaterial(orden.id) }, modifier = Modifier.fillMaxWidth()) {
                     Text("Agregar material")
                 }
-                Text("Opcional: si no utilizaste materiales, deja la lista vacía.", style = MaterialTheme.typography.bodySmall)
+                Text("Materiales opcionales.", style = MaterialTheme.typography.bodySmall)
             } }
             item {
                 SeccionFormulario("03 / EVIDENCIA FOTOGRÁFICA") {
@@ -539,7 +543,7 @@ internal fun DetalleOrden(
                 OutlinedButton(onClick = elegirFoto, modifier = Modifier.fillMaxWidth()) {
                     Text("Elegir de galería · $tipoFoto")
                 }
-                Text("La imagen elegida se copia a esta orden y queda guardada en el dispositivo.",
+                Text("La foto queda guardada en esta orden.",
                     style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -569,7 +573,7 @@ internal fun DetalleOrden(
             }
         }
         if (perfil == Perfil.CLIENTE && orden.estado == EstadoOt.PENDIENTE_CONFORMIDAD) {
-            item { TituloSeccion("¿Todo está conforme?", "Aprueba el trabajo o deja una observación para que el técnico responda.") }
+            item { TituloSeccion("¿Todo está conforme?", "Aprueba o indica qué falta revisar.") }
             item { CampoFormulario(formulario.observacion, { viewModel.cambiarObservacion(orden.id, it) },
                 "Tu observación", errorObservacion, minLines = 3, ejemplo = "Escribe aquí si algo necesita revisión") }
             item {
@@ -589,31 +593,27 @@ internal fun DetalleOrden(
                 viewModel.responderObservacion(orden.id, formulario.respuesta)
              } }, modifier = Modifier.fillMaxWidth()) { Text("Enviar respuesta") } }
         }
+        if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA && escribiendoInforme) item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { viewModel.ejecutar {
+                        viewModel.guardarBorrador(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
+                        escribiendoInforme = false
+                    } }, modifier = Modifier.weight(1f)) { Text("Volver a la visita") }
+                    OutlinedButton(onClick = { viewModel.ejecutar {
+                        viewModel.guardarBorrador(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
+                    } }, modifier = Modifier.weight(1f)) { Text("Guardar borrador") }
+                }
+                Button(onClick = { viewModel.ejecutar {
+                    viewModel.finalizarVisita(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
+                } }, modifier = Modifier.fillMaxWidth()) { Text("Finalizar visita") }
+            }
+        }
         if (mensaje.isNotBlank()) item {
             Surface(color = MaterialTheme.colorScheme.secondaryContainer,
                 shape = MaterialTheme.shapes.medium) {
                 Text(mensaje, modifier = Modifier.padding(14.dp),
                     color = MaterialTheme.colorScheme.onSecondaryContainer)
-            }
-        }
-    }
-    if (perfil == Perfil.TECNICO && orden.estado == EstadoOt.EN_VISITA) {
-        Surface(color = MaterialTheme.colorScheme.surface) {
-            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (!escribiendoInforme) {
-                    Button(onClick = { seccionInforme = "inicio"; escribiendoInforme = true }, modifier = Modifier.fillMaxWidth()) { Text("Escribir informe") }
-                } else {
-                TextButton(onClick = { viewModel.ejecutar {
-                    viewModel.guardarBorrador(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
-                    escribiendoInforme = false
-                 } }, modifier = Modifier.fillMaxWidth()) { Text("Volver a la visita") }
-                OutlinedButton(onClick = { viewModel.ejecutar {
-                    viewModel.guardarBorrador(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
-                 } }, modifier = Modifier.fillMaxWidth()) { Text("Guardar borrador") }
-                Button(onClick = { viewModel.ejecutar {
-                    viewModel.finalizarVisita(orden.id, formulario.diagnostico, formulario.actividad, formulario.materiales)
-                 } }, modifier = Modifier.fillMaxWidth()) { Text("Finalizar visita") }
-                }
             }
         }
     }

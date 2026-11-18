@@ -1,7 +1,14 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+val archivoFirma = rootProject.file("keystore.properties")
+val datosFirma = Properties().apply {
+    if (archivoFirma.isFile) archivoFirma.inputStream().use { load(it) }
 }
 
 android {
@@ -14,14 +21,29 @@ android {
         applicationId = "com.example.proyecto_acis"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (archivoFirma.isFile) {
+            create("entrega") {
+                fun dato(nombre: String): String = requireNotNull(datosFirma.getProperty(nombre)?.takeIf { it.isNotBlank() }) {
+                    "Falta $nombre en keystore.properties"
+                }
+                storeFile = rootProject.file(dato("storeFile"))
+                storePassword = dato("storePassword")
+                keyAlias = dato("keyAlias")
+                keyPassword = dato("keyPassword")
+            }
+        }
+    }
     buildTypes {
         release {
+            isDebuggable = false
+            if (archivoFirma.isFile) signingConfig = signingConfigs.getByName("entrega")
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")

@@ -10,7 +10,8 @@ La rama conserva la reorganización por paquetes y las etapas 1 a 4. El 17/11/20
 - Etapa 2 implementada y verificada el 17/11/2026.
 - Etapa 3 implementada y verificada el 17/11/2026.
 - Etapa 4 implementada y verificada el 17/11/2026.
-- Etapas 5 y 6 pendientes, en el orden descrito abajo.
+- Etapa 5: pruebas implementadas y JVM verificada el 17/11/2026; pendiente ejecutar las pruebas de pantalla en un entorno estable y la revisión manual del teléfono.
+- Etapa 6: APK firmada verificada el 18/11/2026; documentación y paquete de entrega preparados. Falta confirmar los datos administrativos y completar las comprobaciones específicas pendientes.
 - Verificación inicial de la etapa 1: compilan la aplicación y la APK de pruebas; pasaron 42 pruebas unitarias y 23 pruebas Android en una instancia temporal del emulador.
 - Se agregaron cuatro pruebas unitarias del formulario por pasos y tres pruebas Android para la corrección de errores, la conservación de datos entre pasos y la preparación del informe.
 - En la etapa 1, Espresso se actualizó a 3.7.0 y AndroidX Test JUnit a 1.3.0 para ejecutar las pruebas de pantalla en el emulador actual. Esa etapa no agregó dependencias de producción.
@@ -89,12 +90,33 @@ La aplicación y las pruebas compilan; pasan las 42 pruebas unitarias y las tres
 - Conservar pruebas unitarias y de base de datos existentes.
 - Revisar en teléfono el teclado, la cámara, la galería y los permisos.
 
+### Resultado de la etapa 5
+
+- Se publicó el avance de las etapas 1 a 4 en feature/mejoras-acis con el commit `d4a788a`. Se integró y publicó en main mediante el merge `e14d1bc`. La etapa 5 continúa en la misma rama de mejoras, actualizada desde main.
+- Se agregaron cuatro pruebas de recorridos del ViewModel con Room real: creación y edición, separación de roles y técnicos, corrección de errores, rechazo, reasignación, postergación, visita e informe, observación, respuesta y conformidad.
+- Tres pruebas del repositorio comprueban conservación al reabrir la base, rollback del informe con conservación del borrador y acciones concurrentes sin eventos duplicados.
+- Tres pruebas de operaciones asíncronas comprueban bloqueo de acciones repetidas, error y reintento y liberación de carga por cancelación.
+- Pasan las 96 pruebas de la JVM, sin fallos ni pruebas omitidas. Compilan las APK debug y de pruebas Android. No se agregaron dependencias ni cambios de comportamiento de producción en esta etapa.
+- Se agregó `RevisionClienteTest` para recorrer observación, respuesta y aprobación desde la pantalla, incluyendo errores vacíos y cancelación de la confirmación. El primer intento terminó en timeout al esperar la respuesta. Se corrigió el montaje de la prueba para recrear el detalle al cambiar de rol, como hace la navegación real; esa corrección compila. Durante ese intento se observó además un diálogo de bloqueo de com.android.systemui. Se repitió con gráficos del equipo y el emulador quedó bloqueado por el proceso system antes de completar la ejecución. Se cerraron ambas instancias temporales sin guardar cambios en el AVD. La prueba corregida queda pendiente de ejecución; no se contó como aprobada.
+- Siguen pendientes el calendario de la etapa 1 y el recorrido visual completo en un emulador estable, además de teclado, permisos, cámara, galería y actualización sobre los datos reales del teléfono. La guía `docs/pruebas-recorridos.md` describe los casos.
+- Los cambios nuevos de la etapa 5 quedan locales, sin otro commit ni push después de la integración solicitada.
+
 ## 6. Entrega
 
 - Preparar la configuración de release y el versionado.
 - Generar y comprobar una APK firmada cuando se disponga de la clave de entrega.
 - Mantener claves y contraseñas fuera del repositorio.
 - Actualizar la documentación con el resultado real y sus limitaciones.
+
+### Avance de la etapa 6
+
+- Se prepara la versión 1.1.0, versionCode 2, conservando applicationId y Room 9. La rama sigue siendo feature/mejoras-acis.
+- Release permite firma mediante keystore.properties local y una plantilla sin contraseñas. Se excluyen de Git ese archivo y las claves. El usuario confirmó que todavía no tiene una clave de entrega; por eso la APK release actual queda sin firmar y no se presenta como instalable.
+- Se quitaron las acciones fijas del informe técnico: guardar, volver y finalizar están en el contenido desplazable. Se abre el informe desde la visita. Se acortaron ayudas, el estado de sincronización ocupa una línea y el historial muestra inicialmente el último evento, conservando acceso a todos.
+- Lint detectó dos errores de permisos en ubicación. Se agregó una comprobación de permiso en el servicio y manejo explícito de SecurityException, conservando la opción de continuar sin ubicación. Pasan 98 pruebas JVM, incluidas dos nuevas para permiso denegado y ubicación reciente. Compilan debug, la APK de pruebas y release; lint queda sin errores y con 32 avisos de mantenimiento y 3 sugerencias. La APK release se generó sin firma, como corresponde a la ausencia de clave.
+- Se actualizó la ERS a versión documental 1.4 con arquitectura, versiones y estado real de pruebas. Se conservó el logo y se exportó con Word para revisar las 12 páginas; render_docx.py no pudo exportar porque no está instalado LibreOffice.
+- El usuario confirmó funcionamiento general en el teléfono. Falta revisar los ajustes nuevos del informe con el teclado y ejecutar la APK firmada cuando exista la clave. Las pruebas de pantalla pendientes de la etapa 5 siguen documentadas.
+- Las instrucciones están en docs/entrega.md. No se hizo commit ni push de estos cambios.
 
 ## Etapa posterior: backend propio
 
@@ -103,3 +125,19 @@ El material presenta Spring Boot como ejemplo de backend. Su integración se pla
 ## Criterio de avance
 
 Cada etapa debe compilar y pasar las pruebas relacionadas antes de iniciar la siguiente. Se mantiene la estética actual y no se cambia el comportamiento de negocio por una reorganización técnica.
+
+## Cierre documental del 18 de noviembre de 2026
+
+El equipo creó la clave fuera del repositorio y generó la APK release firmada 1.1.0. Se verificó su firma v2 y la coincidencia de todos los archivos fuera de META-INF con el release compilado. El usuario confirmó instalación y apertura en emulador. Se actualizaron ERS, guía, README y entrega, conservando el historial anterior de etapas.
+
+Las notas anteriores de la etapa 6 describen su preparación, cuando todavía no existía la clave. El estado vigente es el de este cierre. No se declara completada la automatización de pantalla pendiente ni verificados todos los permisos por una confirmación general del usuario.
+
+Se prepara un paquete local independiente del backend. No se inició la rama backend-sincronizacion ni se publicaron cambios durante este cierre; falta confirmar si la entrega académica ya fue enviada antes de modificar el repositorio remoto.
+
+## Consolidación en Git del 18 de noviembre de 2026
+
+El usuario autorizó guardar y publicar todos los cambios pendientes antes de pasar al backend. Se separa el avance en commits de pruebas, preparación de versión e interfaz y documentación de la EFT. Se conserva una copia pública de la APK firmada en apk/ACIS-1.1.0-release.apk; los archivos de clave y contraseñas permanecen excluidos.
+
+Las referencias anteriores a cambios locales o sin publicar describen su estado al preparar cada documento. Los commits de consolidación y el merge posterior identifican la base publicada. La siguiente rama se llama backend-sincronizacion y parte de esa base, conservando feature/mejoras-acis y las ramas anteriores.
+
+El paquete ZIP preparado antes de revisar la EFT se conserva sin reemplazarlo. No equivale a una entrega EFT completa ni a una confirmación de envío en AVA.

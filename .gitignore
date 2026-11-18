@@ -10,3 +10,11 @@
 .cxx
 local.properties
 /.kotlin/
+/keystore.properties
+*.jks
+*.keystore
+*.p12
+
+/app/release/
+
+/entregas/

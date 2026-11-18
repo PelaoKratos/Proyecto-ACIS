@@ -28,7 +28,7 @@ fun HistorialEventos(eventos: List<EventoOt>, hitosAnteriores: List<Pair<String,
                 }
                 HorizontalDivider()
             }
-            (if (completo) eventos else eventos.takeLast(5)).forEach { evento ->
+            (if (completo) eventos else eventos.takeLast(1)).forEach { evento ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("●", color = MaterialTheme.colorScheme.primary)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -41,8 +41,8 @@ fun HistorialEventos(eventos: List<EventoOt>, hitosAnteriores: List<Pair<String,
                     }
                 }
             }
-            if (eventos.size > 5) TextButton(onClick = { completo = !completo }) {
-                Text(if (completo) "Mostrar últimos eventos" else "Ver los ${eventos.size} eventos")
+            if (eventos.size > 1) TextButton(onClick = { completo = !completo }) {
+                Text(if (completo) "Mostrar último evento" else "Ver los ${eventos.size} eventos")
             }
         }
     }
