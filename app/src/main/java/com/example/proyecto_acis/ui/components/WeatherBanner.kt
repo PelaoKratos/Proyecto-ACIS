@@ -9,8 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.example.proyecto_acis.domain.ContextoClima
-import com.example.proyecto_acis.ui.ClimaViewModel
+import com.example.proyecto_acis.domain.service.ContextoClima
+import com.example.proyecto_acis.ui.viewmodel.ClimaViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -20,7 +20,8 @@ fun WeatherBanner(contexto: ContextoClima?, viewModel: ClimaViewModel) {
     if (contexto == null) return
     val solicitud = contexto.solicitud
     LaunchedEffect(solicitud) { if (solicitud != null) viewModel.consultar(solicitud) }
-    val estado = solicitud?.let(viewModel::estado)
+    val estados by viewModel.estados.collectAsState()
+    val estado = estados[solicitud]
     val resultado = estado?.resultado
     val hora = resultado?.hora
     val alerta = hora?.hayAlerta == true

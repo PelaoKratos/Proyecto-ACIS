@@ -1,0 +1,551 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 9,
+    "identityHash": "d0dadc54af1a6b423c569ce7052b3b15",
+    "entities": [
+      {
+        "tableName": "clientes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `nombre` TEXT NOT NULL COLLATE NOCASE, `esDemo` INTEGER NOT NULL DEFAULT 0, `horasLlegada` INTEGER, `horasResolucion` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "esDemo",
+            "columnName": "esDemo",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "horasLlegada",
+            "columnName": "horasLlegada",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "horasResolucion",
+            "columnName": "horasResolucion",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "clientes_nombre",
+            "unique": true,
+            "columnNames": [
+              "nombre"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `clientes_nombre` ON `${TABLE_NAME}` (`nombre`)"
+          }
+        ]
+      },
+      {
+        "tableName": "locales",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `clienteId` TEXT NOT NULL, `nombre` TEXT NOT NULL COLLATE NOCASE, `direccion` TEXT NOT NULL DEFAULT '', `latitud` REAL, `longitud` REAL, PRIMARY KEY(`id`), FOREIGN KEY(`clienteId`) REFERENCES `clientes`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clienteId",
+            "columnName": "clienteId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "direccion",
+            "columnName": "direccion",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "latitud",
+            "columnName": "latitud",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "longitud",
+            "columnName": "longitud",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "locales_por_cliente",
+            "unique": false,
+            "columnNames": [
+              "clienteId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `locales_por_cliente` ON `${TABLE_NAME}` (`clienteId`)"
+          },
+          {
+            "name": "locales_nombre",
+            "unique": true,
+            "columnNames": [
+              "nombre"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `locales_nombre` ON `${TABLE_NAME}` (`nombre`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "clientes",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "clienteId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "equipos",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `localId` TEXT NOT NULL, `nombre` TEXT NOT NULL COLLATE NOCASE, `tipo` TEXT NOT NULL, `ubicacion` TEXT NOT NULL DEFAULT '', `esExterior` INTEGER NOT NULL DEFAULT 0, `ultimaMantencion` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`localId`) REFERENCES `locales`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localId",
+            "columnName": "localId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ubicacion",
+            "columnName": "ubicacion",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "esExterior",
+            "columnName": "esExterior",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "ultimaMantencion",
+            "columnName": "ultimaMantencion",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "equipos_por_local",
+            "unique": false,
+            "columnNames": [
+              "localId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `equipos_por_local` ON `${TABLE_NAME}` (`localId`)"
+          },
+          {
+            "name": "equipos_local_nombre",
+            "unique": true,
+            "columnNames": [
+              "localId",
+              "nombre"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `equipos_local_nombre` ON `${TABLE_NAME}` (`localId`, `nombre`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "locales",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "localId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "ordenes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `local` TEXT NOT NULL, `equipo` TEXT NOT NULL, `descripcion` TEXT NOT NULL, `fechaProgramada` TEXT NOT NULL, `tipo` TEXT NOT NULL, `prioridad` TEXT NOT NULL, `estado` TEXT NOT NULL, `tecnico` TEXT NOT NULL, `checkIn` TEXT NOT NULL, `ubicacionCheckIn` TEXT NOT NULL DEFAULT '', `checkOut` TEXT NOT NULL, `diagnostico` TEXT NOT NULL, `actividad` TEXT NOT NULL, `materiales` TEXT NOT NULL, `observacionCliente` TEXT NOT NULL, `respuestaTecnico` TEXT NOT NULL, `fechaConformidad` TEXT NOT NULL, `fotoEvidencia` TEXT NOT NULL DEFAULT '', `ultimaActualizacion` INTEGER NOT NULL DEFAULT 0, `equipoId` TEXT, `slaClienteId` TEXT, `slaClienteNombre` TEXT, `slaHorasLlegada` INTEGER, `slaHorasResolucion` INTEGER, `slaInicio` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`equipoId`) REFERENCES `equipos`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "local",
+            "columnName": "local",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "equipo",
+            "columnName": "equipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descripcion",
+            "columnName": "descripcion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaProgramada",
+            "columnName": "fechaProgramada",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "prioridad",
+            "columnName": "prioridad",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tecnico",
+            "columnName": "tecnico",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkIn",
+            "columnName": "checkIn",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ubicacionCheckIn",
+            "columnName": "ubicacionCheckIn",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "checkOut",
+            "columnName": "checkOut",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "diagnostico",
+            "columnName": "diagnostico",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actividad",
+            "columnName": "actividad",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "materiales",
+            "columnName": "materiales",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "observacionCliente",
+            "columnName": "observacionCliente",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "respuestaTecnico",
+            "columnName": "respuestaTecnico",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaConformidad",
+            "columnName": "fechaConformidad",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fotoEvidencia",
+            "columnName": "fotoEvidencia",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "ultimaActualizacion",
+            "columnName": "ultimaActualizacion",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "equipoId",
+            "columnName": "equipoId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "slaClienteId",
+            "columnName": "slaClienteId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "slaClienteNombre",
+            "columnName": "slaClienteNombre",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "slaHorasLlegada",
+            "columnName": "slaHorasLlegada",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "slaHorasResolucion",
+            "columnName": "slaHorasResolucion",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "slaInicio",
+            "columnName": "slaInicio",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "ordenes_por_equipo",
+            "unique": false,
+            "columnNames": [
+              "equipoId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `ordenes_por_equipo` ON `${TABLE_NAME}` (`equipoId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "equipos",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "equipoId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "eventos_ot",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `otId` TEXT NOT NULL, `tipo` TEXT NOT NULL, `rol` TEXT NOT NULL, `actor` TEXT NOT NULL, `fechaMillis` INTEGER NOT NULL, `detalle` TEXT NOT NULL, FOREIGN KEY(`otId`) REFERENCES `ordenes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "otId",
+            "columnName": "otId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rol",
+            "columnName": "rol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actor",
+            "columnName": "actor",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaMillis",
+            "columnName": "fechaMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detalle",
+            "columnName": "detalle",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "eventos_por_orden",
+            "unique": false,
+            "columnNames": [
+              "otId",
+              "fechaMillis",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `eventos_por_orden` ON `${TABLE_NAME}` (`otId`, `fechaMillis`, `id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "ordenes",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "otId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "sync_ot",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`otId` TEXT NOT NULL, `revision` INTEGER NOT NULL, `estado` TEXT NOT NULL, `intentoMillis` INTEGER, PRIMARY KEY(`otId`), FOREIGN KEY(`otId`) REFERENCES `ordenes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "otId",
+            "columnName": "otId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "intentoMillis",
+            "columnName": "intentoMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "otId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ordenes",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "otId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd0dadc54af1a6b423c569ce7052b3b15')"
+    ]
+  }
+}

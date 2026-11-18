@@ -1,6 +1,14 @@
 package com.example.proyecto_acis.domain
 
-import com.example.proyecto_acis.data.*
+import com.example.proyecto_acis.domain.model.Catastro
+import com.example.proyecto_acis.domain.model.Equipo
+import com.example.proyecto_acis.domain.model.EstadoOt
+import com.example.proyecto_acis.domain.model.Local
+import com.example.proyecto_acis.domain.model.OrdenTrabajo
+import com.example.proyecto_acis.domain.service.HoraClima
+import com.example.proyecto_acis.domain.service.Pronostico
+import com.example.proyecto_acis.domain.service.ReglasClima
+import com.example.proyecto_acis.domain.service.SolicitudClima
 import org.junit.Assert.*
 import org.junit.Test
 

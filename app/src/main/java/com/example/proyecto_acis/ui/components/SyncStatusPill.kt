@@ -9,9 +9,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.example.proyecto_acis.data.EstadoSync
-import com.example.proyecto_acis.data.RegistroSync
-import com.example.proyecto_acis.ui.OrdenesViewModel
+import com.example.proyecto_acis.data.sync.EstadoSync
+import com.example.proyecto_acis.data.sync.RegistroSync
+import com.example.proyecto_acis.ui.viewmodel.OrdenesViewModel
 
 @Composable
 fun SyncStatusPill(registro: RegistroSync?) {

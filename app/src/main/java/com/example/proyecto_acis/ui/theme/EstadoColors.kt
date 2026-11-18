@@ -1,8 +1,8 @@
 package com.example.proyecto_acis.ui.theme
 
 import androidx.compose.ui.graphics.Color
-import com.example.proyecto_acis.data.EstadoOt
-import com.example.proyecto_acis.data.PrioridadOt
+import com.example.proyecto_acis.domain.model.EstadoOt
+import com.example.proyecto_acis.domain.model.PrioridadOt
 
 data class ColorChip(val fondo: Color, val texto: Color)
 
